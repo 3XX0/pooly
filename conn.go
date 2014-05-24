@@ -1,6 +1,7 @@
 package pooly
 
 import (
+	"net"
 	"time"
 )
 
@@ -19,6 +20,12 @@ func NewConn(i interface{}) *Conn {
 // Interface returns an interface referring to the underlying user object.
 func (c *Conn) Interface() interface{} {
 	return c.iface
+}
+
+// NetConn is a helper for underlying user objects that satisfy
+// the standard library net.Conn interface
+func (c *Conn) NetConn() net.Conn {
+	return c.iface.(net.Conn)
 }
 
 func (c *Conn) isClosed() bool {
