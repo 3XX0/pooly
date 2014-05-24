@@ -47,5 +47,8 @@ func (c *Conn) setIdle(p *Pool) {
 }
 
 func (c *Conn) setActive() bool {
-	return c.timer.Stop()
+	if c.timer != nil {
+		return c.timer.Stop()
+	}
+	return true
 }
