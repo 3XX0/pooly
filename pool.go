@@ -74,6 +74,7 @@ type Pool struct {
 	gc         chan *Conn
 	inbound    unsafe.Pointer
 	closing    int32
+	wakeup     chan bool
 	cancel     chan bool
 }
 
@@ -137,6 +138,8 @@ func (p *Pool) decConnsCount() {
 
 // Garbage collects connections.
 func (p *Pool) collect() {
+	var c *Conn
+
 	for {
 		if p.isClosing() {
 			if p.fetchConnsCount() == 0 {
@@ -146,7 +149,11 @@ func (p *Pool) collect() {
 			}
 		}
 
-		c := <-p.gc
+		select {
+		case <-p.wakeup:
+			continue
+		case c = <-p.gc:
+		}
 
 		if c != nil && !c.isClosed() {
 			// XXX workaround to avoid closing twice a connection
@@ -179,6 +186,7 @@ func NewPool(c *PoolConfig) (*Pool, error) {
 		PoolConfig: c,
 		conns:      make(chan *Conn, c.MaxConns),
 		gc:         make(chan *Conn, c.MaxConns),
+		wakeup:     make(chan bool, 1),
 		cancel:     make(chan bool),
 	}
 	p.inbound = unsafe.Pointer(&p.conns)
@@ -287,6 +295,9 @@ func (p *Pool) Close() error {
 
 	p.setInboundChannelGC()
 	p.setClosing(true)
+	// XXX wakeup the garbage collector if it happens to be asleep
+	// This is necessary when a Close is issued and there are no more connections left to collect
+	p.wakeup <- true
 
 	// Garbage collect all the idle connections left
 	for c := range p.conns {
