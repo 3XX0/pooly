@@ -16,7 +16,6 @@ const (
 var (
 	ErrPoolInvalidDriver = errors.New("invalid driver supplied")
 	ErrPoolClosed        = errors.New("pool is closed")
-	ErrPoolCloseCanceled = errors.New("close got canceled")
 	ErrPoolTimeout       = errors.New("operation timed out")
 )
 
@@ -75,15 +74,10 @@ type Pool struct {
 	inbound    unsafe.Pointer
 	closing    int32
 	wakeup     chan bool
-	cancel     chan bool
 }
 
-func (p *Pool) setClosing(b bool) {
-	if b {
-		atomic.StoreInt32(&p.closing, 1)
-	} else {
-		atomic.StoreInt32(&p.closing, 0)
-	}
+func (p *Pool) setClosing() {
+	atomic.StoreInt32(&p.closing, 1)
 }
 
 func (p *Pool) isClosing() bool {
@@ -93,11 +87,6 @@ func (p *Pool) isClosing() bool {
 func (p *Pool) inboundChannel() chan *Conn {
 	i := atomic.LoadPointer(&p.inbound)
 	return *(*chan *Conn)(i)
-}
-
-func (p *Pool) setInboundChannelConns() {
-	i := unsafe.Pointer(&p.conns)
-	atomic.StorePointer(&p.inbound, i)
 }
 
 // After that, all inbound connections will be garbage collected.
@@ -187,7 +176,6 @@ func NewPool(c *PoolConfig) (*Pool, error) {
 		conns:      make(chan *Conn, c.MaxConns),
 		gc:         make(chan *Conn, c.MaxConns),
 		wakeup:     make(chan bool, 1),
-		cancel:     make(chan bool),
 	}
 	p.inbound = unsafe.Pointer(&p.conns)
 	go p.collect()
@@ -286,49 +274,15 @@ func (p *Pool) Close() error {
 		return ErrPoolClosed
 	}
 
-	// Check if we have an ongoing cancel operation
-	select {
-	case p.cancel <- true:
-		return ErrPoolCloseCanceled
-	default:
-	}
-
 	p.setInboundChannelGC()
-	p.setClosing(true)
+	p.setClosing()
 	// XXX wakeup the garbage collector if it happens to be asleep
 	// This is necessary when a Close is issued and there are no more connections left to collect
 	p.wakeup <- true
 
 	// Garbage collect all the idle connections left
 	for c := range p.conns {
-		select {
-		case p.cancel <- true: // close canceled, revert changes
-			p.setInboundChannelConns()
-			p.setClosing(false)
-			p.conns <- c
-			return ErrPoolCloseCanceled
-		case p.gc <- c:
-		}
-	}
-	close(p.cancel)
-	return nil
-}
-
-// Cancel attempts to interrupt an ongoing Close operation.
-func (p *Pool) Cancel(timeout time.Duration) error {
-	var t <-chan time.Time
-	var b bool
-
-	if timeout > 0 {
-		t = time.After(timeout)
-	}
-	select {
-	case b = <-p.cancel:
-	case <-t:
-		return ErrPoolTimeout
-	}
-	if !b {
-		return ErrPoolClosed
+		p.gc <- c
 	}
 	return nil
 }
