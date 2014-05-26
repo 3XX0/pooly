@@ -72,6 +72,18 @@ func ping(t *testing.T, c net.Conn) {
 	}
 }
 
+func TestCloseAfterNew(t *testing.T) {
+	p, err := NewPool(&PoolConfig{
+		Driver: NewNetDriver("tcp", serverAddress),
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := p.Close(); err != nil {
+		t.Fatal(err)
+	}
+}
+
 func TestBulkGet(t *testing.T) {
 	var w sync.WaitGroup
 
