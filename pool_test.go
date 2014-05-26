@@ -4,41 +4,54 @@ import (
 	"bytes"
 	"io"
 	"net"
+	"sync"
 	"testing"
-	"time"
 )
 
 const serverAddress = "localhost:7357"
 
-type server struct{ c chan struct{} }
+type server struct {
+	l net.Listener
+	q chan struct{}
+	w sync.WaitGroup
+}
 
 func echoServer(t *testing.T) *server {
-	s := &server{make(chan struct{})}
+	var err error
 
+	s := &server{q: make(chan struct{})}
+	s.l, err = net.Listen("tcp", serverAddress)
+	if err != nil {
+		t.Fatal(err)
+	}
 	go func() {
-		l, err := net.Listen("tcp", serverAddress)
-		if err != nil {
-			t.Fatal(err)
+	loop:
+		for {
+			c, err := s.l.Accept()
+			if err != nil {
+				select {
+				case <-s.q:
+					break loop
+				default:
+					t.Error(err)
+					continue
+				}
+			}
+			s.w.Add(1)
+			go func() {
+				io.Copy(c, c)
+				c.Close()
+				s.w.Done()
+			}()
 		}
-		c, err := l.Accept()
-		if err != nil {
-			t.Fatal(err)
-		}
-		io.Copy(c, c)
-		c.Close()
-		l.Close()
-		close(s.c)
 	}()
-
 	return s
 }
 
-func (s server) wait(t *testing.T) {
-	select {
-	case <-s.c:
-	case <-time.After(1 * time.Second):
-		t.Error("server timed out")
-	}
+func (s server) close(t *testing.T) {
+	close(s.q)
+	s.l.Close()
+	s.w.Wait()
 }
 
 func ping(t *testing.T, c net.Conn) {
@@ -59,26 +72,33 @@ func ping(t *testing.T, c net.Conn) {
 	}
 }
 
-func TestGet(t *testing.T) {
+func TestBulkGet(t *testing.T) {
+	var w sync.WaitGroup
+
 	e := echoServer(t)
-	defer e.wait(t)
+	defer e.close(t)
 
 	p, err := NewPool(&PoolConfig{
 		Driver: NewNetDriver("tcp", serverAddress),
 	})
 	if err != nil {
-		t.Error(err)
-		return
+		t.Fatal(err)
 	}
-	c, err := p.Get()
-	if err != nil {
-		t.Error(err)
-		return
+	w.Add(10)
+	for i := 0; i < 10; i++ {
+		go func() {
+			c, err := p.Get()
+			w.Done()
+			if err != nil {
+				t.Error(err)
+			} else {
+				ping(t, c.NetConn())
+			}
+			p.Put(c, err)
+		}()
 	}
-	ping(t, c.NetConn())
-	p.Put(c, err)
+	w.Wait()
 	if err := p.Close(); err != nil {
-		t.Error(err)
-		return
+		t.Fatal(err)
 	}
 }
