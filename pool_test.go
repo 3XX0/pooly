@@ -195,3 +195,14 @@ func TestTestOnBorrow(t *testing.T) {
 		t.Fatal(err)
 	}
 }
+
+func TestBugousPut(t *testing.T) {
+	p, _ := NewPool(&PoolConfig{Driver: netDriver})
+
+	if err := p.Close(); err != nil {
+		t.Fatal(err)
+	}
+	if err := p.Put(NewConn(nil), nil); err != ErrPoolClosed {
+		t.Fatal("pool not closed")
+	}
+}

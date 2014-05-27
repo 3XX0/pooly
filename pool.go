@@ -134,6 +134,7 @@ func (p *Pool) collect() {
 			if p.fetchConnsCount() == 0 {
 				// All connections have been garbage collected
 				close(p.conns) // notify Close that we're done
+				close(p.gc)
 				return
 			}
 		}
@@ -263,17 +264,24 @@ gotone:
 }
 
 // Put puts a given connection back to the pool depending on its error status.
-func (p *Pool) Put(c *Conn, err error) error {
+func (p *Pool) Put(c *Conn, e error) (err error) {
+	defer func() {
+		// XXX should not happen but to be safe, recover from Put on closed pool
+		if r := recover(); r != nil {
+			err = ErrPoolClosed
+		}
+	}()
+
 	if c == nil {
 		return ErrPoolInvalidArg
 	}
-	if err != nil && !p.Driver.Temporary(err) {
+	if e != nil && !p.Driver.Temporary(e) {
 		p.gc <- c
-		return nil
+		return
 	}
 	c.setIdle(p)
 	p.inboundChannel() <- c
-	return nil
+	return
 }
 
 // Close closes the pool, thus destroying all connections.

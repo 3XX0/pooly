@@ -33,6 +33,9 @@ func (c *Conn) isClosed() bool {
 }
 
 func (c *Conn) setClosed() {
+	if c.timer != nil {
+		c.timer.Stop()
+	}
 	c.closed = true
 }
 
