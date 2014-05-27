@@ -243,6 +243,11 @@ func (p *Pool) Get() (c *Conn, err error) {
 	}
 
 gotone:
+	if c == nil {
+		// Pool has been closed simultaneously
+		err = ErrPoolClosed
+		return
+	}
 	if !c.setActive() {
 		// Connection timed out, start over
 		return p.Get()
