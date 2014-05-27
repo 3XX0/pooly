@@ -14,9 +14,9 @@ const (
 )
 
 var (
-	ErrPoolInvalidDriver = errors.New("invalid driver supplied")
-	ErrPoolClosed        = errors.New("pool is closed")
-	ErrPoolTimeout       = errors.New("operation timed out")
+	ErrPoolInvalidArg = errors.New("pooly: invalid argument")
+	ErrPoolClosed     = errors.New("pooly: pool is closed")
+	ErrPoolTimeout    = errors.New("pooly: operation timed out")
 )
 
 // Driver describes the interface responsible of creating/deleting/testing pool connections.
@@ -159,7 +159,7 @@ func (p *Pool) collect() {
 // NewPool creates a new pool of connections.
 func NewPool(c *PoolConfig) (*Pool, error) {
 	if c.Driver == nil {
-		return nil, ErrPoolInvalidDriver
+		return nil, ErrPoolInvalidArg
 	}
 	if c.MaxConns <= 0 {
 		c.MaxConns = defaultConnsNum
@@ -257,16 +257,17 @@ gotone:
 }
 
 // Put puts a given connection back to the pool depending on its error status.
-func (p *Pool) Put(c *Conn, err error) {
+func (p *Pool) Put(c *Conn, err error) error {
 	if c == nil {
-		return
+		return ErrPoolInvalidArg
 	}
 	if err != nil && !p.Driver.Temporary(err) {
 		p.gc <- c
-		return
+		return nil
 	}
 	c.setIdle(p)
 	p.inboundChannel() <- c
+	return nil
 }
 
 // Close closes the pool, thus destroying all connections.
