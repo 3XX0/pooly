@@ -258,12 +258,15 @@ gotone:
 
 // Put puts a given connection back to the pool depending on its error status.
 func (p *Pool) Put(c *Conn, err error) {
-	if c != nil && (err == nil || p.Driver.Temporary(err)) {
-		c.setIdle(p)
-		p.inboundChannel() <- c
+	if c == nil {
 		return
 	}
-	p.gc <- c
+	if err != nil && !p.Driver.Temporary(err) {
+		p.gc <- c
+		return
+	}
+	c.setIdle(p)
+	p.inboundChannel() <- c
 }
 
 // Close closes the pool, thus destroying all connections.
