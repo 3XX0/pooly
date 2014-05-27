@@ -1,101 +1,33 @@
 package pooly
 
 import (
-	"bytes"
-	"io"
-	"net"
+	"errors"
 	"sync"
 	"testing"
+	"time"
 )
 
-const serverAddress = "localhost:7357"
-
-type server struct {
-	l net.Listener
-	q chan struct{}
-	w sync.WaitGroup
+type customDriver struct {
+	*NetDriver
 }
 
-func echoServer(t *testing.T) *server {
-	var err error
-
-	s := &server{q: make(chan struct{})}
-	s.l, err = net.Listen("tcp", serverAddress)
-	if err != nil {
-		t.Fatal(err)
-	}
-	go func() {
-	loop:
-		for {
-			c, err := s.l.Accept()
-			if err != nil {
-				select {
-				case <-s.q:
-					break loop
-				default:
-					t.Error(err)
-					continue
-				}
-			}
-			s.w.Add(1)
-			go func() {
-				io.Copy(c, c)
-				c.Close()
-				s.w.Done()
-			}()
-		}
-	}()
-	return s
+func (d *customDriver) TestOnBorrow(c *Conn) error {
+	return ping(c.NetConn())
 }
 
-func (s server) close(t *testing.T) {
-	close(s.q)
-	s.l.Close()
-	s.w.Wait()
-}
-
-func ping(t *testing.T, c net.Conn) {
-	b := make([]byte, 4)
-	m := []byte("ping")
-
-	if _, err := c.Write(m); err != nil {
-		t.Error(err)
-		return
-	}
-	if _, err := c.Read(b); err != nil {
-		t.Error(err)
-		return
-	}
-	if !bytes.Equal(b, m) {
-		t.Error("ping failed")
-		return
-	}
-}
-
-func TestCloseAfterNew(t *testing.T) {
-	p, err := NewPool(&PoolConfig{
-		Driver: NewNetDriver("tcp", serverAddress),
-	})
-	if err != nil {
-		t.Fatal(err)
-	}
-	if err := p.Close(); err != nil {
-		t.Fatal(err)
-	}
-}
+var (
+	netDriver  = NewNetDriver("tcp", "localhost:7357")
+	testDriver = &customDriver{netDriver}
+)
 
 func TestBulkGet(t *testing.T) {
 	var w sync.WaitGroup
 
-	e := echoServer(t)
-	defer e.close(t)
+	e := newEchoServer(t)
+	defer e.close()
 
-	p, err := NewPool(&PoolConfig{
-		Driver: NewNetDriver("tcp", serverAddress),
-	})
-	if err != nil {
-		t.Fatal(err)
-	}
+	p, _ := NewPool(&PoolConfig{Driver: netDriver})
+
 	w.Add(10)
 	for i := 0; i < 10; i++ {
 		go func() {
@@ -103,13 +35,162 @@ func TestBulkGet(t *testing.T) {
 			w.Done()
 			if err != nil {
 				t.Error(err)
-			} else {
-				ping(t, c.NetConn())
+				return
+			}
+			err = ping(c.NetConn())
+			if err != nil {
+				t.Error(err)
 			}
 			p.Put(c, err)
 		}()
 	}
 	w.Wait()
+	if err := p.Close(); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestPut(t *testing.T) {
+	e := newEchoServer(t)
+	defer e.close()
+
+	p, _ := NewPool(&PoolConfig{Driver: netDriver})
+
+	c, err := p.Get()
+	if err != nil {
+		t.Fatal(err)
+	}
+	p.Put(c, nil)
+
+	d, err := p.Get()
+	if err != nil {
+		t.Fatal(err)
+	}
+	p.Put(d, errors.New("")) // fake an operation failure
+	if c != d {
+		t.Fatal("connections mismatch")
+	}
+
+	c, err = p.Get()
+	if err != nil {
+		t.Fatal(err)
+	}
+	p.Put(c, nil)
+	if c == d {
+		t.Fatal("connections match")
+	}
+
+	if err := p.Close(); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestClose(t *testing.T) {
+	p, _ := NewPool(&PoolConfig{Driver: netDriver})
+
+	if err := p.Close(); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := p.Get(); err != ErrPoolClosed {
+		t.Fatal("pool not closed")
+	}
+}
+
+func TestConnFailed(t *testing.T) {
+	p, _ := NewPool(&PoolConfig{
+		Driver:      netDriver,
+		WaitTimeout: 10 * time.Millisecond,
+	})
+
+	_, err := p.Get()
+	if err != ErrPoolTimeout {
+		t.Fatal("timeout expected")
+	}
+
+	if err := p.Close(); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestConnIdle(t *testing.T) {
+	e := newEchoServer(t)
+	defer e.close()
+
+	p, _ := NewPool(&PoolConfig{
+		Driver:      netDriver,
+		IdleTimeout: 10 * time.Millisecond,
+	})
+
+	c, err := p.Get()
+	if err != nil {
+		t.Fatal(err)
+	}
+	p.Put(c, nil)
+
+	time.Sleep(p.IdleTimeout) // wait for idle timeout to expire
+
+	d, err := p.Get()
+	if err != nil {
+		t.Fatal(err)
+	}
+	p.Put(d, nil)
+	if c == d {
+		t.Fatal("connections match")
+	}
+
+	if err := p.Close(); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestMaxConns(t *testing.T) {
+	e := newEchoServer(t)
+	defer e.close()
+
+	p, _ := NewPool(&PoolConfig{
+		Driver:      netDriver,
+		WaitTimeout: 10 * time.Millisecond,
+		MaxConns:    1,
+	})
+
+	c, err := p.Get()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	_, err = p.Get()
+	if err != ErrPoolTimeout {
+		t.Fatal("timeout expected")
+	}
+
+	p.Put(c, nil)
+	if err := p.Close(); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestTestOnBorrow(t *testing.T) {
+	e := newEchoServer(t)
+	defer e.close()
+
+	p, _ := NewPool(&PoolConfig{Driver: testDriver})
+
+	c, err := p.Get()
+	if err != nil {
+		t.Fatal(err)
+	}
+	c.NetConn().Close() // close the underlying connection
+	p.Put(c, nil)
+
+	d, err := p.Get()
+	if err != nil {
+		t.Fatal(err)
+	}
+	p.Put(d, nil)
+	if c == d {
+		t.Fatal("connections match")
+	}
+
 	if err := p.Close(); err != nil {
 		t.Fatal(err)
 	}
