@@ -133,8 +133,8 @@ func (p *Pool) collect() {
 		if p.isClosing() {
 			if p.fetchConnsCount() == 0 {
 				// All connections have been garbage collected
-				close(p.conns) // notify Close that we're done
 				close(p.gc)
+				close(p.conns) // notify Close that we're done
 				return
 			}
 		}
