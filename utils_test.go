@@ -7,6 +7,7 @@ import (
 	"net"
 	"sync"
 	"testing"
+	"time"
 )
 
 type echoServer struct {
@@ -24,13 +25,12 @@ func newEchoServer(t *testing.T) *echoServer {
 		t.Fatal(err)
 	}
 	go func() {
-	loop:
 		for {
 			c, err := s.l.Accept()
 			if err != nil {
 				select {
 				case <-s.q:
-					break loop
+					return
 				default:
 					t.Error(err)
 					continue
@@ -51,6 +51,7 @@ func (s *echoServer) close() {
 	close(s.q)
 	s.l.Close()
 	s.w.Wait()
+	time.Sleep(1 * time.Millisecond)
 }
 
 func ping(c net.Conn) error {
