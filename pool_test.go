@@ -68,7 +68,7 @@ func TestPut(t *testing.T) {
 	}
 	p.Put(d, errors.New("")) // fake an operation failure
 	if c != d {
-		t.Fatal("connections mismatch")
+		t.Fatal("connections match expected")
 	}
 
 	c, err = p.Get()
@@ -77,7 +77,7 @@ func TestPut(t *testing.T) {
 	}
 	p.Put(c, nil)
 	if c == d {
-		t.Fatal("connections match")
+		t.Fatal("connections mismatch expected")
 	}
 
 	if err := p.Close(); err != nil {
@@ -92,7 +92,7 @@ func TestClose(t *testing.T) {
 		t.Fatal(err)
 	}
 	if _, err := p.Get(); err != ErrPoolClosed {
-		t.Fatal("pool not closed")
+		t.Fatal("closed pool expected")
 	}
 }
 
@@ -135,7 +135,7 @@ func TestConnIdle(t *testing.T) {
 	}
 	p.Put(d, nil)
 	if c == d {
-		t.Fatal("connections match")
+		t.Fatal("connections mismatch expected")
 	}
 
 	if err := p.Close(); err != nil {
@@ -188,7 +188,7 @@ func TestTestOnBorrow(t *testing.T) {
 	}
 	p.Put(d, nil)
 	if c == d {
-		t.Fatal("connections match")
+		t.Fatal("connections mismatch expected")
 	}
 
 	if err := p.Close(); err != nil {
@@ -203,6 +203,6 @@ func TestBugousPut(t *testing.T) {
 		t.Fatal(err)
 	}
 	if err := p.Put(NewConn(nil), nil); err != ErrPoolClosed {
-		t.Fatal("pool not closed")
+		t.Fatal("closed pool expected")
 	}
 }
