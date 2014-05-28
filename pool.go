@@ -214,12 +214,12 @@ func (p *Pool) New(n int) error {
 }
 
 // Get gets a fully tested connection from the pool
-func (p *Pool) Get() (c *Conn, err error) {
+func (p *Pool) Get() (*Conn, error) {
 	var t <-chan time.Time
+	var c *Conn
 
 	if p.isClosing() {
-		err = ErrPoolClosed
-		return
+		return nil, ErrPoolClosed
 	}
 
 	// Try to get a connection right away optimistically
@@ -227,8 +227,8 @@ func (p *Pool) Get() (c *Conn, err error) {
 	case c = <-p.conns:
 		goto gotone
 	default: // connections are running low, spawn a new one
-		if err = p.New(1); err != nil {
-			return
+		if err := p.New(1); err != nil {
+			return nil, err
 		}
 	}
 
@@ -239,15 +239,13 @@ func (p *Pool) Get() (c *Conn, err error) {
 	case c = <-p.conns:
 		goto gotone
 	case <-t:
-		err = ErrPoolTimeout
-		return
+		return nil, ErrPoolTimeout
 	}
 
 gotone:
 	if c == nil {
 		// Pool has been closed simultaneously
-		err = ErrPoolClosed
-		return
+		return nil, ErrPoolClosed
 	}
 	if !c.setActive() {
 		// Connection timed out, start over
@@ -260,7 +258,7 @@ gotone:
 			return p.Get()
 		}
 	}
-	return
+	return c, nil
 }
 
 // Put puts a given connection back to the pool depending on its error status.
