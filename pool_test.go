@@ -2,6 +2,7 @@ package pooly
 
 import (
 	"errors"
+	"math/rand"
 	"sync"
 	"testing"
 	"time"
@@ -204,5 +205,40 @@ func TestBugousPut(t *testing.T) {
 	}
 	if err := p.Put(NewConn(nil), nil); err != ErrPoolClosed {
 		t.Fatal("closed pool expected")
+	}
+}
+
+func TestParallelRandOps(t *testing.T) {
+	var w sync.WaitGroup
+
+	e := newEchoServer(t)
+	defer e.close()
+
+	rand.Seed(time.Now().Unix())
+	for i := 0; i < 10; i++ {
+		p, _ := NewPool(&PoolConfig{Driver: netDriver})
+
+		w.Add(1)
+		go func() {
+			d := time.Duration(rand.Intn(10))
+			time.Sleep(d * time.Millisecond)
+			c, err := p.Get()
+			if err != nil {
+				if err != ErrPoolClosed {
+					t.Error(err)
+				}
+				return
+			}
+			p.Put(c, nil)
+		}()
+		go func() {
+			d := time.Duration(rand.Intn(10))
+			time.Sleep(d * time.Millisecond)
+			if err := p.Close(); err != nil {
+				t.Error(err)
+			}
+			w.Done()
+		}()
+		w.Wait()
 	}
 }
