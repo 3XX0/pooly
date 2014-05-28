@@ -40,6 +40,7 @@ func (c *Conn) setClosed() {
 	if c.timer != nil {
 		select {
 		case c.timerStop <- true:
+			c.timer.Stop()
 		default:
 		}
 	}
@@ -66,6 +67,7 @@ func (c *Conn) setActive() bool {
 	if c.timer != nil {
 		select {
 		case c.timerStop <- true:
+			c.timer.Stop()
 		default:
 			return false
 		}
