@@ -7,14 +7,18 @@ import (
 
 // Conn abstracts user connections that are part of a Pool.
 type Conn struct {
-	iface  interface{}
-	timer  *time.Timer
-	closed bool
+	iface     interface{}
+	timer     *time.Timer
+	timerStop chan bool
+	closed    bool
 }
 
 // Create a new connection container, wrapping up a user defined connection object.
 func NewConn(i interface{}) *Conn {
-	return &Conn{iface: i}
+	return &Conn{
+		iface:     i,
+		timerStop: make(chan bool),
+	}
 }
 
 // Interface returns an interface referring to the underlying user object.
@@ -34,24 +38,37 @@ func (c *Conn) isClosed() bool {
 
 func (c *Conn) setClosed() {
 	if c.timer != nil {
-		c.timer.Stop()
+		select {
+		case c.timerStop <- true:
+		default:
+		}
 	}
 	c.closed = true
 }
 
 func (c *Conn) setIdle(p *Pool) {
 	if p.IdleTimeout > 0 {
-		c.timer = time.AfterFunc(p.IdleTimeout, func() {
-			// The connection has been idle for too long,
-			// send it to the garbage collector
-			p.gc <- c
-		})
+		c.timer = time.NewTimer(p.IdleTimeout)
+		go func() {
+			select {
+			case <-c.timerStop:
+				return
+			case <-c.timer.C:
+				// The connection has been idle for too long,
+				// send it to the garbage collector
+				p.gc <- c
+			}
+		}()
 	}
 }
 
 func (c *Conn) setActive() bool {
 	if c.timer != nil {
-		return c.timer.Stop()
+		select {
+		case c.timerStop <- true:
+		default:
+			return false
+		}
 	}
 	return true
 }
