@@ -13,7 +13,7 @@ type Conn struct {
 	closed    bool
 }
 
-// Create a new connection container, wrapping up a user defined connection object.
+// NewConn creates a new connection container, wrapping up a user defined connection object.
 func NewConn(i interface{}) *Conn {
 	return &Conn{
 		iface:     i,

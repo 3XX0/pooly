@@ -13,6 +13,7 @@ const (
 	defaultRetryDelay  = 10 * time.Millisecond
 )
 
+// Pool global errors.
 var (
 	ErrPoolInvalidArg = errors.New("pooly: invalid argument")
 	ErrPoolClosed     = errors.New("pooly: pool is closed")
