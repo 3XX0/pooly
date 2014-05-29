@@ -44,8 +44,11 @@ func TestBulkGet(t *testing.T) {
 			}
 			p.Put(c, err)
 		}()
+		time.Sleep(1 * time.Millisecond)
 	}
+
 	w.Wait()
+	t.Log("active connections:", p.ActiveConns())
 	if err := p.Close(); err != nil {
 		t.Fatal(err)
 	}

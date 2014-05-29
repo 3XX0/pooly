@@ -214,6 +214,11 @@ func (p *Pool) New(n int) error {
 	return nil
 }
 
+// ActiveConns returns the number of connections handled by the pool thus far.
+func (p *Pool) ActiveConns() int32 {
+	return atomic.LoadInt32(&p.connsCount)
+}
+
 // Get gets a fully tested connection from the pool
 func (p *Pool) Get() (*Conn, error) {
 	var t <-chan time.Time
