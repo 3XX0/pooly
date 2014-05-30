@@ -40,7 +40,11 @@ func (n *NetDriver) Dial() (*Conn, error) {
 
 // Close is analogous to net.Close.
 func (n *NetDriver) Close(c *Conn) {
-	_ = c.NetConn().Close()
+	nc := c.NetConn()
+	if nc == nil {
+		return
+	}
+	_ = nc.Close()
 }
 
 // TestOnBorrow does nothing.

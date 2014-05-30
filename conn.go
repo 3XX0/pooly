@@ -29,6 +29,9 @@ func (c *Conn) Interface() interface{} {
 // NetConn is a helper for underlying user objects that satisfy
 // the standard library net.Conn interface
 func (c *Conn) NetConn() net.Conn {
+	if c.iface == nil {
+		return nil
+	}
 	return c.iface.(net.Conn)
 }
 
