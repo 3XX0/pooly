@@ -2,9 +2,7 @@ package pooly
 
 import (
 	"errors"
-	"sync/atomic"
 	"time"
-	"unsafe"
 )
 
 const (
@@ -69,95 +67,26 @@ type PoolConfig struct {
 type Pool struct {
 	*PoolConfig
 
-	connsCount int32
+	status     state
+	inbound    channel
+	connsCount counter
 	conns      chan *Conn
 	gc         chan *Conn
-	inbound    unsafe.Pointer
-	closing    int32
-	wakeupGC   chan struct{}
+	gcCtl      chan int
 }
 
-func (p *Pool) setClosing() {
-	atomic.StoreInt32(&p.closing, 1)
-}
+// Pool status
+const (
+	active int32 = iota
+	closing
+	closed
+)
 
-func (p *Pool) isClosing() bool {
-	return atomic.LoadInt32(&p.closing) == 1
-}
-
-func (p *Pool) inboundChannel() chan *Conn {
-	i := atomic.LoadPointer(&p.inbound)
-	return *(*chan *Conn)(i)
-}
-
-// After that, all inbound connections will be garbage collected.
-func (p *Pool) setInboundChannelGC() {
-	i := unsafe.Pointer(&p.gc)
-	atomic.StorePointer(&p.inbound, i)
-}
-
-// Atomically returns the current connections count.
-func (p *Pool) fetchConnsCount() int32 {
-	for b := false; !b; {
-		n := atomic.LoadInt32(&p.connsCount)
-		if n > 0 {
-			return n
-		}
-		// Null, set it back to MaxConns in order to prevent newConn from altering it
-		b = atomic.CompareAndSwapInt32(&p.connsCount, n, p.MaxConns)
-	}
-	return 0
-}
-
-// Atomically increments the number of connections.
-func (p *Pool) incConnsCount() bool {
-	for b := false; !b; {
-		n := atomic.LoadInt32(&p.connsCount)
-		if n == p.MaxConns {
-			return false // maximum connections count reached
-		}
-		b = atomic.CompareAndSwapInt32(&p.connsCount, n, n+1)
-	}
-	return true
-}
-
-// Atomically decrements the number of connections.
-func (p *Pool) decConnsCount() {
-	atomic.AddInt32(&p.connsCount, -1)
-}
-
-// Garbage collects connections.
-func (p *Pool) collect() {
-	var c *Conn
-
-	for {
-		if p.isClosing() {
-			if p.fetchConnsCount() == 0 {
-				// All connections have been garbage collected
-				close(p.gc)
-				close(p.conns) // notify Close that we're done
-				return
-			}
-		}
-
-		select {
-		case <-p.wakeupGC:
-			p.wakeupGC = nil
-			continue
-		case c = <-p.gc:
-		}
-
-		if c != nil && !c.isClosed() {
-			// XXX workaround to avoid closing twice a connection
-			// Since idle timeouts can occur at any time, we may have duplicates in the queue
-			c.setClosed()
-			p.Driver.Close(c)
-			p.decConnsCount()
-		} else if c == nil {
-			p.decConnsCount()
-		}
-	}
-}
+// GC control options
+const (
+	wakeup int = iota
+	kill
+)
 
 // NewPool creates a new pool of connections.
 func NewPool(c *PoolConfig) (*Pool, error) {
@@ -176,25 +105,63 @@ func NewPool(c *PoolConfig) (*Pool, error) {
 
 	p := &Pool{
 		PoolConfig: c,
+		status:     newState(active),
+		connsCount: newCounter(c.MaxConns),
 		conns:      make(chan *Conn, c.MaxConns),
 		gc:         make(chan *Conn, c.MaxConns),
-		wakeupGC:   make(chan struct{}),
+		gcCtl:      make(chan int, 1),
 	}
-	p.inbound = unsafe.Pointer(&p.conns)
-	go p.collect()
+	p.inbound = newChannel(&p.conns)
 
+	go p.collect()
 	return p, nil
 }
 
+// Garbage collects connections.
+func (p *Pool) collect() {
+	var c *Conn
+
+	for {
+		if p.status.is(closing) && p.connsCount.zero() {
+			// All connections have been garbage collected
+			if p.status.set(closed) {
+				close(p.conns) // notify Close that we're done
+			}
+			return
+		}
+
+		select {
+		case ctl := <-p.gcCtl:
+			switch ctl {
+			case wakeup:
+				continue
+			case kill:
+				return
+			}
+		case c = <-p.gc:
+		}
+
+		if c != nil && !c.isClosed() {
+			// XXX workaround to avoid closing twice a connection
+			// Since idle timeouts can occur at any time, we may have duplicates in the queue
+			c.setClosed()
+			p.Driver.Close(c)
+			p.connsCount.decrement()
+		} else if c == nil {
+			p.connsCount.decrement()
+		}
+	}
+}
+
 func (p *Pool) newConn() {
-	if !p.incConnsCount() {
+	if !p.connsCount.increment() {
 		return
 	}
 	for i := 0; i < p.MaxAttempts; i++ {
 		c, err := p.Driver.Dial()
 		if c != nil && (err == nil || p.Driver.Temporary(err)) {
 			c.setIdle(p)
-			p.inboundChannel() <- c
+			p.inbound.channel() <- c
 			return
 		}
 		time.Sleep(p.RetryDelay)
@@ -205,9 +172,10 @@ func (p *Pool) newConn() {
 // New attempts to create n new connections in background.
 // Note that it does nothing when MaxConns is reached.
 func (p *Pool) New(n int) error {
-	if p.isClosing() {
+	if p.status.is(closing) {
 		return ErrPoolClosed
 	}
+
 	for i := 0; i < n; i++ {
 		go p.newConn()
 	}
@@ -216,7 +184,7 @@ func (p *Pool) New(n int) error {
 
 // ActiveConns returns the number of connections handled by the pool thus far.
 func (p *Pool) ActiveConns() int32 {
-	return atomic.LoadInt32(&p.connsCount)
+	return p.connsCount.fetch()
 }
 
 // Get gets a fully tested connection from the pool
@@ -224,7 +192,7 @@ func (p *Pool) Get() (*Conn, error) {
 	var t <-chan time.Time
 	var c *Conn
 
-	if p.isClosing() {
+	if p.status.is(closing) {
 		return nil, ErrPoolClosed
 	}
 
@@ -268,39 +236,37 @@ gotone:
 }
 
 // Put puts a given connection back to the pool depending on its error status.
-func (p *Pool) Put(c *Conn, e error) (err error) {
-	defer func() {
-		// XXX should not happen but to be safe, recover from Put on closed pool
-		if r := recover(); r != nil {
-			err = ErrPoolClosed
-		}
-	}()
+func (p *Pool) Put(c *Conn, e error) error {
+	if p.status.is(closed) {
+		return ErrPoolClosed
+	}
 
 	if c == nil {
 		return ErrPoolInvalidArg
 	}
 	if e != nil && !p.Driver.Temporary(e) {
 		p.gc <- c
-		return
+		return nil
 	}
 	c.setIdle(p)
-	p.inboundChannel() <- c
-	return
+	p.inbound.channel() <- c
+	return nil
 }
 
 // Close closes the pool, thus destroying all connections.
 // It returns when all spawned connections have been successfully garbage collected.
 // After a successful call to Close, the pool can not be used again.
 func (p *Pool) Close() error {
-	if p.isClosing() {
+	if p.status.is(closing) {
 		return ErrPoolClosed
 	}
 
-	p.setInboundChannelGC()
-	p.setClosing()
+	p.inbound.set(&p.gc)
+	p.status.set(closing)
+
 	// XXX wakeup the garbage collector if it happens to be asleep
 	// This is necessary when a Close is issued and there are no more connections left to collect
-	close(p.wakeupGC)
+	p.gcCtl <- wakeup
 
 	// Garbage collect all the idle connections left
 	for c := range p.conns {
