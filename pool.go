@@ -274,3 +274,15 @@ func (p *Pool) Close() error {
 	}
 	return nil
 }
+
+// ForceClose forces the termination of an ongoing Close operation.
+// It returns true if Close is interrupted successfully, false otherwise.
+// Note that all pending connections unacknowledged by Close will be left unchanged and won't ever be destroyed.
+func (p *Pool) ForceClose() bool {
+	if p.status.is(closing) && p.status.set(closed) {
+		close(p.conns)
+		p.gcCtl <- kill
+		return true
+	}
+	return false
+}

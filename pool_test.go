@@ -245,3 +245,35 @@ func TestParallelRandOps(t *testing.T) {
 		w.Wait()
 	}
 }
+
+func TestForceClose(t *testing.T) {
+	var w sync.WaitGroup
+	var b = true
+
+	e := newEchoServer(t)
+	defer e.close()
+
+	p, _ := NewPool(&PoolConfig{Driver: netDriver})
+
+	c, err := p.Get()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	f := func() {
+		w.Add(1)
+		b = p.ForceClose()
+		w.Done()
+	}
+	time.AfterFunc(10*time.Millisecond, f)
+
+	if err := p.Close(); err != nil {
+		t.Fatal(err)
+	}
+
+	w.Wait()
+	if b == false {
+		t.Fatal("forced close expected")
+	}
+	c.NetConn().Close()
+}
