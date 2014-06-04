@@ -5,10 +5,12 @@ import (
 	"time"
 )
 
+var DefaultDriver = NewNetDriver("tcp")
+
 const (
-	defaultConnsNum    = 10
-	defaultAttemptsNum = 3
-	defaultRetryDelay  = 10 * time.Millisecond
+	DefaultConnsNum    = 10
+	DefaultAttemptsNum = 3
+	DefaultRetryDelay  = 10 * time.Millisecond
 )
 
 // Pool global errors.
@@ -37,24 +39,24 @@ type Driver interface {
 
 // PoolConfig defines the pool configuration options.
 type PoolConfig struct {
-	// Connection driver.
+	// Connection driver (DefaultDriver by default).
 	Driver Driver
 
 	// Close connections after remaining idle for this duration.
-	// If the value is zero, then idle connections are not closed.
+	// If the value is zero (default), then idle connections are not closed.
 	IdleTimeout time.Duration
 
 	// Defines the duration during which Get operations will try to return a connection from the pool.
-	// If the value is zero, then Get should wait forever.
+	// If the value is zero (default), then Get should wait forever.
 	WaitTimeout time.Duration
 
-	// Maximum number of connections allowed in the pool (10 by default).
+	// Maximum number of connections allowed in the pool (DefaultConnsNum by default).
 	MaxConns int32
 
-	// Maximum number of connection attempts (3 by default).
+	// Maximum number of connection attempts (DefaultAttemptsNum by default).
 	MaxAttempts int
 
-	// Time interval between connection attempts (10ms by default).
+	// Time interval between connection attempts (DefaultRetryDelay by default).
 	RetryDelay time.Duration
 }
 
@@ -90,18 +92,22 @@ const (
 )
 
 // NewPool creates a new pool of connections.
-func NewPool(c *PoolConfig) (*Pool, error) {
+// If no configuration is specified, defaults values are used.
+func NewPool(address string, c *PoolConfig) *Pool {
+	if c == nil {
+		c = new(PoolConfig)
+	}
 	if c.Driver == nil {
-		return nil, ErrPoolInvalidArg
+		c.Driver = DefaultDriver
 	}
 	if c.MaxConns <= 0 {
-		c.MaxConns = defaultConnsNum
+		c.MaxConns = DefaultConnsNum
 	}
 	if c.MaxAttempts <= 0 {
-		c.MaxAttempts = defaultAttemptsNum
+		c.MaxAttempts = DefaultAttemptsNum
 	}
 	if c.RetryDelay == 0 {
-		c.RetryDelay = defaultRetryDelay
+		c.RetryDelay = DefaultRetryDelay
 	}
 
 	p := &Pool{
@@ -116,7 +122,7 @@ func NewPool(c *PoolConfig) (*Pool, error) {
 	p.inbound = newChannel(&p.conns)
 
 	go p.collect()
-	return p, nil
+	return p
 }
 
 // Garbage collects connections.
