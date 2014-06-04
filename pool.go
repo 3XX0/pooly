@@ -20,9 +20,9 @@ var (
 
 // Driver describes the interface responsible of creating/deleting/testing pool connections.
 type Driver interface {
-	// Dial is a function that establishes a connection with a remote host.
+	// Dial is a function that given an address, establishes a connection with a remote host.
 	// It returns the connection created or an error on failure.
-	Dial() (*Conn, error)
+	Dial(string) (*Conn, error)
 
 	// Close closes the given connection.
 	Close(*Conn)
@@ -67,6 +67,7 @@ type PoolConfig struct {
 type Pool struct {
 	*PoolConfig
 
+	address    string
 	status     state
 	inbound    channel
 	connsCount counter
@@ -105,6 +106,7 @@ func NewPool(c *PoolConfig) (*Pool, error) {
 
 	p := &Pool{
 		PoolConfig: c,
+		address:    address,
 		status:     newState(active),
 		connsCount: newCounter(c.MaxConns),
 		conns:      make(chan *Conn, c.MaxConns),
@@ -158,7 +160,7 @@ func (p *Pool) newConn() {
 		return
 	}
 	for i := 0; i < p.MaxAttempts; i++ {
-		c, err := p.Driver.Dial()
+		c, err := p.Driver.Dial(p.address)
 		if c != nil && (err == nil || p.Driver.Temporary(err)) {
 			c.setIdle(p)
 			p.inbound.channel() <- c
@@ -285,4 +287,8 @@ func (p *Pool) ForceClose() bool {
 		return true
 	}
 	return false
+}
+
+func (p *Pool) Address() string {
+	return p.address
 }

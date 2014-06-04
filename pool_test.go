@@ -17,7 +17,8 @@ func (d *customDriver) TestOnBorrow(c *Conn) error {
 }
 
 var (
-	netDriver  = NewNetDriver("tcp", "localhost:7357")
+	address    = "localhost:7357"
+	netDriver  = NewNetDriver("tcp")
 	testDriver = &customDriver{netDriver}
 )
 
@@ -27,7 +28,7 @@ func TestBulkGet(t *testing.T) {
 	e := newEchoServer(t)
 	defer e.close()
 
-	p, _ := NewPool(&PoolConfig{Driver: netDriver})
+	p, _ := NewPool(address, &PoolConfig{Driver: netDriver})
 
 	w.Add(10)
 	for i := 0; i < 10; i++ {
@@ -58,7 +59,7 @@ func TestPut(t *testing.T) {
 	e := newEchoServer(t)
 	defer e.close()
 
-	p, _ := NewPool(&PoolConfig{Driver: netDriver})
+	p, _ := NewPool(address, &PoolConfig{Driver: netDriver})
 
 	c, err := p.Get()
 	if err != nil {
@@ -90,7 +91,7 @@ func TestPut(t *testing.T) {
 }
 
 func TestClose(t *testing.T) {
-	p, _ := NewPool(&PoolConfig{Driver: netDriver})
+	p, _ := NewPool(address, &PoolConfig{Driver: netDriver})
 
 	if err := p.Close(); err != nil {
 		t.Fatal(err)
@@ -101,7 +102,7 @@ func TestClose(t *testing.T) {
 }
 
 func TestConnFailed(t *testing.T) {
-	p, _ := NewPool(&PoolConfig{
+	p, _ := NewPool(address, &PoolConfig{
 		Driver:      netDriver,
 		WaitTimeout: 10 * time.Millisecond,
 	})
@@ -120,7 +121,7 @@ func TestConnIdle(t *testing.T) {
 	e := newEchoServer(t)
 	defer e.close()
 
-	p, _ := NewPool(&PoolConfig{
+	p, _ := NewPool(address, &PoolConfig{
 		Driver:      netDriver,
 		IdleTimeout: 10 * time.Millisecond,
 	})
@@ -151,7 +152,7 @@ func TestMaxConns(t *testing.T) {
 	e := newEchoServer(t)
 	defer e.close()
 
-	p, _ := NewPool(&PoolConfig{
+	p, _ := NewPool(address, &PoolConfig{
 		Driver:      netDriver,
 		WaitTimeout: 10 * time.Millisecond,
 		MaxConns:    1,
@@ -177,7 +178,7 @@ func TestTestOnBorrow(t *testing.T) {
 	e := newEchoServer(t)
 	defer e.close()
 
-	p, _ := NewPool(&PoolConfig{Driver: testDriver})
+	p, _ := NewPool(address, &PoolConfig{Driver: testDriver})
 
 	c, err := p.Get()
 	if err != nil {
@@ -201,7 +202,7 @@ func TestTestOnBorrow(t *testing.T) {
 }
 
 func TestBugousPut(t *testing.T) {
-	p, _ := NewPool(&PoolConfig{Driver: netDriver})
+	p, _ := NewPool(address, &PoolConfig{Driver: netDriver})
 
 	if err := p.Close(); err != nil {
 		t.Fatal(err)
@@ -219,7 +220,7 @@ func TestParallelRandOps(t *testing.T) {
 
 	rand.Seed(time.Now().Unix())
 	for i := 0; i < 10; i++ {
-		p, _ := NewPool(&PoolConfig{Driver: netDriver})
+		p, _ := NewPool(address, &PoolConfig{Driver: netDriver})
 
 		w.Add(1)
 		go func() {
@@ -253,7 +254,7 @@ func TestForceClose(t *testing.T) {
 	e := newEchoServer(t)
 	defer e.close()
 
-	p, _ := NewPool(&PoolConfig{Driver: netDriver})
+	p, _ := NewPool(address, &PoolConfig{Driver: netDriver})
 
 	c, err := p.Get()
 	if err != nil {

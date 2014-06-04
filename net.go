@@ -8,16 +8,12 @@ import (
 // NetDriver is a predefined driver for handling standard net.Conn objects.
 type NetDriver struct {
 	network string
-	address string
 	timeout time.Duration
 }
 
 // NewNetDriver instantiates a new NetDriver, ready to be used in a PoolConfig.
-func NewNetDriver(network, address string) *NetDriver {
-	return &NetDriver{
-		network: network,
-		address: address,
-	}
+func NewNetDriver(network string) *NetDriver {
+	return &NetDriver{network: network}
 }
 
 // SetTimeout sets the dialing timeout on a net.Conn object.
@@ -26,14 +22,14 @@ func (n *NetDriver) SetTimeout(timeout time.Duration) {
 }
 
 // Dial is analogous to net.Dial.
-func (n *NetDriver) Dial() (*Conn, error) {
+func (n *NetDriver) Dial(address string) (*Conn, error) {
 	var c net.Conn
 	var err error
 
 	if n.timeout > 0 {
-		c, err = net.DialTimeout(n.network, n.address, n.timeout)
+		c, err = net.DialTimeout(n.network, address, n.timeout)
 	} else {
-		c, err = net.Dial(n.network, n.address)
+		c, err = net.Dial(n.network, address)
 	}
 	return NewConn(c), err
 }
