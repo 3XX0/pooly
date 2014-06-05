@@ -61,11 +61,11 @@ type PoolConfig struct {
 }
 
 // Pool maintains a pool of connections. The application calls the Get method to get a connection
-// from the pool and the Put method to return the connection to the pool. New can be called to allocate
-// more connections in the background.
+// from the pool and the Put method to return the connection to the pool.
+// New can be called to allocate more connections in the background.
 // When one is done with the pool, Close will cleanup all the connections ressources.
-// The pool itself will adapt to the demand by spawning and destroying connections as needed. In order to
-// tweak its behavior, settings like IdleTimeout and MaxConns may be used.
+// The pool itself will adapt to the demand by spawning and destroying connections as needed.
+// In order to tweak its behavior, settings like IdleTimeout and MaxConns may be used.
 type Pool struct {
 	*PoolConfig
 
@@ -78,14 +78,14 @@ type Pool struct {
 	gcCtl      chan int
 }
 
-// Pool status
+// Pool status.
 const (
 	active int32 = iota
 	closing
 	closed
 )
 
-// GC control options
+// GC control options.
 const (
 	wakeup int = iota
 	kill
@@ -195,7 +195,7 @@ func (p *Pool) ActiveConns() int32 {
 	return p.connsCount.fetch()
 }
 
-// Get gets a fully tested connection from the pool
+// Get gets a fully tested connection from the pool.
 func (p *Pool) Get() (*Conn, error) {
 	var t <-chan time.Time
 	var c *Conn
