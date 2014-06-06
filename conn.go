@@ -11,6 +11,7 @@ type Conn struct {
 	timer     *time.Timer
 	timerStop chan bool
 	closed    bool
+	host      *host
 }
 
 // NewConn creates a new connection container, wrapping up a user defined connection object.
@@ -76,4 +77,21 @@ func (c *Conn) setActive() bool {
 		}
 	}
 	return true
+}
+
+func (c *Conn) setHost(h *host) {
+	c.host = h
+}
+
+func (c *Conn) Release(e error, score float64) error {
+	if c.host == nil {
+		return ErrNoHostAvailable
+	}
+	if score < 0 || score > 1 {
+		return ErrInvalidArg
+	}
+
+	err := c.host.releaseConn(c, e, score)
+	c.host = nil
+	return err
 }

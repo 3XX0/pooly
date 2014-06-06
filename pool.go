@@ -1,23 +1,7 @@
 package pooly
 
 import (
-	"errors"
 	"time"
-)
-
-var DefaultDriver = NewNetDriver("tcp")
-
-const (
-	DefaultConnsNum    = 10
-	DefaultAttemptsNum = 3
-	DefaultRetryDelay  = 10 * time.Millisecond
-)
-
-// Pool global errors.
-var (
-	ErrPoolInvalidArg = errors.New("pooly: invalid argument")
-	ErrPoolClosed     = errors.New("pooly: pool is closed")
-	ErrPoolTimeout    = errors.New("pooly: operation timed out")
 )
 
 // Driver describes the interface responsible of creating/deleting/testing pool connections.
@@ -221,7 +205,7 @@ func (p *Pool) Get() (*Conn, error) {
 	case c = <-p.conns:
 		goto gotone
 	case <-t:
-		return nil, ErrPoolTimeout
+		return nil, ErrOpTimeout
 	}
 
 gotone:
@@ -250,7 +234,7 @@ func (p *Pool) Put(c *Conn, e error) error {
 	}
 
 	if c == nil {
-		return ErrPoolInvalidArg
+		return ErrInvalidArg
 	}
 	if e != nil && !p.Driver.Temporary(e) {
 		p.gc <- c

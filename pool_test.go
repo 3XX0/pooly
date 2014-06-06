@@ -106,7 +106,7 @@ func TestConnFailed(t *testing.T) {
 	})
 
 	_, err := p.Get()
-	if err != ErrPoolTimeout {
+	if err != ErrOpTimeout {
 		t.Fatal("timeout expected")
 	}
 
@@ -160,7 +160,7 @@ func TestMaxConns(t *testing.T) {
 	}
 
 	_, err = p.Get()
-	if err != ErrPoolTimeout {
+	if err != ErrOpTimeout {
 		t.Fatal("timeout expected")
 	}
 
