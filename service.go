@@ -30,7 +30,9 @@ type Service struct {
 	name  string
 	hosts map[string]*host
 	decay *time.Ticker
-	// TODO channels
+	add   chan string
+	rm    chan string
+	stop  chan struct{}
 }
 
 func NewService(name string, c *ServiceConfig) *Service {
@@ -55,22 +57,50 @@ func NewService(name string, c *ServiceConfig) *Service {
 		name:          name,
 		hosts:         make(map[string]*host),
 		decay:         time.NewTicker(c.DecayDuration),
+		add:           make(chan string),
+		rm:            make(chan string),
+		stop:          make(chan struct{}),
 	}
 
 	go s.timeShift()
+	go s.serve()
 	return s
 }
 
 func (s *Service) timeShift() {
 	for {
-		// TODO stop
-		<-s.decay.C
+		select {
+		case <-s.stop:
+			return
+		case <-s.decay.C:
+		}
 		s.Lock()
 		for _, h := range s.hosts {
 			h.shift()
 		}
 		s.Unlock()
 	}
+}
+
+func (s *Service) serve() {
+	for {
+		select {
+		case a := <-s.add:
+			s.newHost(a)
+		case a := <-s.rm:
+			s.deleteHost(a)
+		case <-s.stop:
+			return
+		}
+	}
+}
+
+func (s *Service) Add(address string) {
+	s.add <- address
+}
+
+func (s *Service) Remove(address string) {
+	s.rm <- address
 }
 
 func (s *Service) newHost(a string) {
@@ -95,12 +125,14 @@ func (s *Service) deleteHost(a string) {
 	delete(s.hosts, a)
 	s.Unlock()
 
-	go func() {
-		if err := h.pool.Close(); err != nil {
-			f := func() { _ = h.pool.ForceClose() }
-			time.AfterFunc(s.CloseDeadline, f)
-		}
-	}()
+	go s.closePool(h)
+}
+
+func (s *Service) closePool(h *host) {
+	if err := h.pool.Close(); err != nil {
+		f := func() { _ = h.pool.ForceClose() }
+		time.AfterFunc(s.CloseDeadline, f)
+	}
 }
 
 func (s *Service) GetConn() (*Conn, error) {
@@ -145,4 +177,15 @@ func (s *Service) Status() map[string]int32 {
 
 func (s *Service) Name() string {
 	return s.name
+}
+
+func (s *Service) Close() {
+	close(s.stop)
+
+	s.Lock()
+	for a, h := range s.hosts {
+		go s.closePool(h)
+		delete(s.hosts, a)
+	}
+	s.Unlock()
 }
