@@ -79,6 +79,7 @@ func (s *Service) newHost(a string) {
 		s.hosts[a] = &host{
 			pool:       NewPool(a, s.PoolConfig),
 			timeSeries: make([]serie, 1, s.SeriesNum),
+			score:      -1,
 		}
 	}
 	s.Unlock()
