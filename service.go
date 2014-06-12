@@ -17,6 +17,7 @@ type ServiceConfig struct {
 	*PoolConfig
 
 	SeriesNum       uint
+	PrespawnConnNum uint
 	CloseDeadline   time.Duration
 	DecayDuration   time.Duration
 	ScoreCalculator Computer
@@ -41,6 +42,9 @@ func NewService(name string, c *ServiceConfig) *Service {
 	}
 	if c.SeriesNum == 0 {
 		c.SeriesNum = DefaultSeriesNum
+	}
+	if c.PrespawnConnNum == 0 {
+		c.PrespawnConnNum = DefaultPrespawnConnNum
 	}
 	if c.CloseDeadline == 0 {
 		c.CloseDeadline = DefaultCloseDeadline
@@ -106,8 +110,10 @@ func (s *Service) Remove(address string) {
 func (s *Service) newHost(a string) {
 	s.Lock()
 	if _, ok := s.hosts[a]; !ok {
+		p := NewPool(a, s.PoolConfig)
+		p.New(s.PrespawnConnNum)
 		s.hosts[a] = &host{
-			pool:       NewPool(a, s.PoolConfig),
+			pool:       p,
 			timeSeries: make([]serie, 1, s.SeriesNum),
 			score:      -1,
 		}

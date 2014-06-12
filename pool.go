@@ -163,12 +163,14 @@ func (p *Pool) newConn() {
 
 // New attempts to create n new connections in background.
 // Note that it does nothing when MaxConns is reached.
-func (p *Pool) New(n int) error {
+func (p *Pool) New(n uint) error {
+	var i uint
+
 	if p.status.is(closing) {
 		return ErrPoolClosed
 	}
 
-	for i := 0; i < n; i++ {
+	for i = 0; i < n; i++ {
 		go p.newConn()
 	}
 	return nil

@@ -13,12 +13,13 @@ var (
 
 // Pooly default constants.
 const (
-	DefaultConnsNum      = 10
-	DefaultAttemptsNum   = 3
-	DefaultRetryDelay    = 10 * time.Millisecond
-	DefaultSeriesNum     = 60
-	DefaultCloseDeadline = 30 * time.Second
-	DefaultDecayDuration = 1 * time.Second
+	DefaultConnsNum        = 10
+	DefaultAttemptsNum     = 3
+	DefaultRetryDelay      = 10 * time.Millisecond
+	DefaultSeriesNum       = 60
+	DefaultPrespawnConnNum = 1
+	DefaultCloseDeadline   = 30 * time.Second
+	DefaultDecayDuration   = 1 * time.Second
 )
 
 // Pooly global errors.
