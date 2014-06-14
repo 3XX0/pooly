@@ -8,26 +8,13 @@ import (
 	"time"
 )
 
-type customDriver struct {
-	*NetDriver
-}
-
-func (d *customDriver) TestOnBorrow(c *Conn) error {
-	return ping(c.NetConn())
-}
-
-var (
-	address    = "localhost:7357"
-	testDriver = &customDriver{DefaultDriver}
-)
-
-func TestBulkGet(t *testing.T) {
+func TestPoolBulkGet(t *testing.T) {
 	var w sync.WaitGroup
 
-	e := newEchoServer(t)
+	e := newEchoServer(t, echo1)
 	defer e.close()
 
-	p := NewPool(address, nil)
+	p := NewPool(echo1, nil)
 
 	w.Add(10)
 	for i := 0; i < 10; i++ {
@@ -54,11 +41,11 @@ func TestBulkGet(t *testing.T) {
 	}
 }
 
-func TestPut(t *testing.T) {
-	e := newEchoServer(t)
+func TestPoolPut(t *testing.T) {
+	e := newEchoServer(t, echo1)
 	defer e.close()
 
-	p := NewPool(address, nil)
+	p := NewPool(echo1, nil)
 
 	c, err := p.Get()
 	if err != nil {
@@ -89,8 +76,8 @@ func TestPut(t *testing.T) {
 	}
 }
 
-func TestClose(t *testing.T) {
-	p := NewPool(address, nil)
+func TestPoolClose(t *testing.T) {
+	p := NewPool(echo1, nil)
 
 	if err := p.Close(); err != nil {
 		t.Fatal(err)
@@ -100,8 +87,8 @@ func TestClose(t *testing.T) {
 	}
 }
 
-func TestConnFailed(t *testing.T) {
-	p := NewPool(address, &PoolConfig{
+func TestPoolConnFailed(t *testing.T) {
+	p := NewPool(echo1, &PoolConfig{
 		WaitTimeout: 10 * time.Millisecond,
 	})
 
@@ -115,11 +102,11 @@ func TestConnFailed(t *testing.T) {
 	}
 }
 
-func TestConnIdle(t *testing.T) {
-	e := newEchoServer(t)
+func TestPoolConnIdle(t *testing.T) {
+	e := newEchoServer(t, echo1)
 	defer e.close()
 
-	p := NewPool(address, &PoolConfig{
+	p := NewPool(echo1, &PoolConfig{
 		IdleTimeout: 10 * time.Millisecond,
 	})
 
@@ -145,11 +132,11 @@ func TestConnIdle(t *testing.T) {
 	}
 }
 
-func TestMaxConns(t *testing.T) {
-	e := newEchoServer(t)
+func TestPoolMaxConns(t *testing.T) {
+	e := newEchoServer(t, echo1)
 	defer e.close()
 
-	p := NewPool(address, &PoolConfig{
+	p := NewPool(echo1, &PoolConfig{
 		WaitTimeout: 10 * time.Millisecond,
 		MaxConns:    1,
 	})
@@ -170,11 +157,11 @@ func TestMaxConns(t *testing.T) {
 	}
 }
 
-func TestTestOnBorrow(t *testing.T) {
-	e := newEchoServer(t)
+func TestPoolTestOnBorrow(t *testing.T) {
+	e := newEchoServer(t, echo1)
 	defer e.close()
 
-	p := NewPool(address, &PoolConfig{
+	p := NewPool(echo1, &PoolConfig{
 		Driver: testDriver,
 	})
 
@@ -199,8 +186,8 @@ func TestTestOnBorrow(t *testing.T) {
 	}
 }
 
-func TestBugousPut(t *testing.T) {
-	p := NewPool(address, nil)
+func TestPoolBugousPut(t *testing.T) {
+	p := NewPool(echo1, nil)
 
 	if err := p.Close(); err != nil {
 		t.Fatal(err)
@@ -210,15 +197,15 @@ func TestBugousPut(t *testing.T) {
 	}
 }
 
-func TestParallelRandOps(t *testing.T) {
+func TestPoolParallelRandOps(t *testing.T) {
 	var w sync.WaitGroup
 
-	e := newEchoServer(t)
+	e := newEchoServer(t, echo1)
 	defer e.close()
 
 	rand.Seed(time.Now().Unix())
 	for i := 0; i < 10; i++ {
-		p := NewPool(address, nil)
+		p := NewPool(echo1, nil)
 
 		w.Add(1)
 		go func() {
@@ -245,14 +232,14 @@ func TestParallelRandOps(t *testing.T) {
 	}
 }
 
-func TestForceClose(t *testing.T) {
+func TestPoolForceClose(t *testing.T) {
 	var w sync.WaitGroup
 	var b = true
 
-	e := newEchoServer(t)
+	e := newEchoServer(t, echo1)
 	defer e.close()
 
-	p := NewPool(address, nil)
+	p := NewPool(echo1, nil)
 
 	c, err := p.Get()
 	if err != nil {
