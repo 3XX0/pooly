@@ -95,3 +95,10 @@ func (c *Conn) Release(e error, score float64) error {
 	c.host = nil
 	return err
 }
+
+func (c *Conn) Address() (string, error) {
+	if c.host == nil {
+		return "", ErrNoHostAvailable
+	}
+	return c.host.pool.Address(), nil
+}
