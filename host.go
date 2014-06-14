@@ -10,6 +10,8 @@ const (
 	HostUp           = 1
 )
 
+const seriesNum = 60
+
 type serie struct {
 	score  float64
 	trials uint32
@@ -34,9 +36,43 @@ func (s *serie) reset() {
 	s.trials = 0
 }
 
-// Shift the current time slot.
-func (h *host) shift() {
+func (h *host) computeScore(c Computer) {
+	var score float64
+
 	h.Lock()
+	n := len(h.timeSeries)
+	m := n * (1 + n) / 2 // arithmetic series
+
+	for i := 1; i <= n; i++ {
+		t := (h.timeSlot + i) % n
+
+		// Decay [0,1] is factor of time, we start with the oldest entry
+		// from which we get the smallest weight
+		decay := float64(i) / float64(m)
+		if h.timeSeries[t].trials > 0 {
+			score += h.timeSeries[t].score * decay
+		} else {
+			// XXX no trials recorded, neither promote nor demote the host
+			score += 0.5 * decay
+		}
+	}
+	if c != nil {
+		score = c.Compute(score) // apply the service score calculator
+	}
+	h.score = score
+	h.Unlock()
+}
+
+func (h *host) getScore() (score float64) {
+	h.RLock()
+	score = h.score
+	h.RUnlock()
+	return
+}
+
+func (h *host) decay() {
+	h.Lock()
+	// Shift the current time slot
 	h.timeSlot = (h.timeSlot + 1) % cap(h.timeSeries)
 	if len(h.timeSeries) < cap(h.timeSeries) {
 		h.timeSeries = append(h.timeSeries, serie{})
@@ -50,31 +86,6 @@ func (h *host) rate(score float64) {
 	h.Lock()
 	h.timeSeries[h.timeSlot].update(score)
 	h.Unlock()
-}
-
-func (h *host) computeScore(c Computer) {
-	h.RLock()
-	n := len(h.timeSeries)
-	m := n * (1 + n) / 2 // arithmetic series
-
-	h.score = 0
-	for i := 1; i <= n; i++ {
-		t := (h.timeSlot + i) % n
-
-		// Decay [0,1] is factor of time, we start with the oldest entry
-		// from which we get the smallest weight
-		decay := float64(i) / float64(m)
-		if h.timeSeries[t].trials > 0 {
-			h.score += h.timeSeries[t].score * decay
-		} else {
-			// XXX no trials recorded, neither promote nor demote the host
-			h.score += 0.5 * decay
-		}
-	}
-	if c != nil {
-		h.score = c.Compute(h.score) // apply the service score calculator
-	}
-	h.RUnlock()
 }
 
 func (h *host) releaseConn(c *Conn, e error, score float64) error {

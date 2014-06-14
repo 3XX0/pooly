@@ -5,21 +5,16 @@ import (
 	"time"
 )
 
-// Pooly default variables.
-var (
-	DefaultDriver = NewNetDriver("tcp")
-	DefaultBandit = NewRoundRobin()
-)
-
 // Pooly default constants.
 const (
-	DefaultConnsNum        = 10
-	DefaultAttemptsNum     = 3
-	DefaultRetryDelay      = 10 * time.Millisecond
-	DefaultSeriesNum       = 60
-	DefaultPrespawnConnNum = 1
-	DefaultCloseDeadline   = 30 * time.Second
-	DefaultDecayDuration   = 1 * time.Second
+	DefaultMaxConns    = 10
+	DefaultMaxAttempts = 3
+	DefaultRetryDelay  = 10 * time.Millisecond
+
+	DefaultPrespawnConns        = 1
+	DefaultCloseDeadline        = 30 * time.Second
+	DefaultDecayDuration        = 1 * time.Minute
+	DefaultMemoizeScoreDuration = 100 * time.Millisecond
 )
 
 // Pooly global errors.

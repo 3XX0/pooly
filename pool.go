@@ -23,7 +23,7 @@ type Driver interface {
 
 // PoolConfig defines the pool configuration options.
 type PoolConfig struct {
-	// Connection driver (DefaultDriver by default).
+	// Connection driver (TCP NetDriver by default).
 	Driver Driver
 
 	// Close connections after remaining idle for this duration.
@@ -34,10 +34,10 @@ type PoolConfig struct {
 	// If the value is zero (default), then Get should wait forever.
 	WaitTimeout time.Duration
 
-	// Maximum number of connections allowed in the pool (DefaultConnsNum by default).
+	// Maximum number of connections allowed in the pool (DefaultMaxConns by default).
 	MaxConns int32
 
-	// Maximum number of connection attempts (DefaultAttemptsNum by default).
+	// Maximum number of connection attempts (DefaultMaxAttempts by default).
 	MaxAttempts int
 
 	// Time interval between connection attempts (DefaultRetryDelay by default).
@@ -82,13 +82,13 @@ func NewPool(address string, c *PoolConfig) *Pool {
 		c = new(PoolConfig)
 	}
 	if c.Driver == nil {
-		c.Driver = DefaultDriver
+		c.Driver = NewNetDriver("tcp")
 	}
 	if c.MaxConns <= 0 {
-		c.MaxConns = DefaultConnsNum
+		c.MaxConns = DefaultMaxConns
 	}
 	if c.MaxAttempts <= 0 {
-		c.MaxAttempts = DefaultAttemptsNum
+		c.MaxAttempts = DefaultMaxAttempts
 	}
 	if c.RetryDelay == 0 {
 		c.RetryDelay = DefaultRetryDelay
