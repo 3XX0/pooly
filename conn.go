@@ -91,9 +91,9 @@ func (c *Conn) Release(e error, score float64) error {
 		return ErrInvalidArg
 	}
 
-	err := c.host.releaseConn(c, e, score)
+	h := c.host
 	c.host = nil
-	return err
+	return h.releaseConn(c, e, score)
 }
 
 func (c *Conn) Address() (string, error) {
