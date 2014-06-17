@@ -1,6 +1,8 @@
 package pooly
 
 import (
+	"math"
+	"math/rand"
 	"sync"
 )
 
@@ -8,6 +10,33 @@ type SoftMax struct {
 }
 
 type EpsilonGreedy struct {
+	epsilon float32
+}
+
+func NewEpsilonGreedy(epsilon float32) *EpsilonGreedy {
+	return &EpsilonGreedy{epsilon}
+}
+
+func (e *EpsilonGreedy) Select(hosts map[string]*Host) (host *Host) {
+	if rand.Float32() > e.epsilon { // exploit
+		var max float64 = -1
+		for _, h := range hosts {
+			score := h.Score()
+			if max = math.Max(max, score); max == score {
+				host = h
+			}
+		}
+	} else { // explore
+		i, n := 0, rand.Intn(len(hosts))
+		for _, h := range hosts {
+			if i == n {
+				host = h
+				break
+			}
+			i++
+		}
+	}
+	return
 }
 
 type RoundRobin struct {
