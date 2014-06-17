@@ -10,7 +10,7 @@ type Computer interface {
 }
 
 type Selecter interface {
-	Select(map[string]*host) *host
+	Select(map[string]*Host) *Host
 }
 
 type ServiceConfig struct {
@@ -29,7 +29,7 @@ type Service struct {
 
 	sync.RWMutex
 	name    string
-	hosts   map[string]*host
+	hosts   map[string]*Host
 	decay   *time.Ticker
 	memoize *time.Ticker
 	add, rm chan string
@@ -59,7 +59,7 @@ func NewService(name string, c *ServiceConfig) *Service {
 	s := &Service{
 		ServiceConfig: c,
 		name:          name,
-		hosts:         make(map[string]*host),
+		hosts:         make(map[string]*Host),
 		add:           make(chan string),
 		rm:            make(chan string),
 		stop:          make(chan struct{}),
@@ -123,7 +123,7 @@ func (s *Service) newHost(a string) {
 
 	p := NewPool(a, &s.PoolConfig)
 	p.New(s.PrespawnConns)
-	s.hosts[a] = &host{
+	s.hosts[a] = &Host{
 		pool:       p,
 		timeSeries: make([]serie, 1, seriesNum),
 		score:      -1,

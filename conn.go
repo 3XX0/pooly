@@ -11,7 +11,7 @@ type Conn struct {
 	timer     *time.Timer
 	timerStop chan bool
 	closed    bool
-	host      *host
+	host      *Host
 }
 
 // NewConn creates a new connection container, wrapping up a user defined connection object.
@@ -79,7 +79,7 @@ func (c *Conn) setActive() bool {
 	return true
 }
 
-func (c *Conn) setHost(h *host) {
+func (c *Conn) setHost(h *Host) {
 	c.host = h
 }
 

@@ -20,7 +20,7 @@ func NewRoundRobin() *RoundRobin {
 	return new(RoundRobin)
 }
 
-func (r *RoundRobin) Select(hosts map[string]*host) (host *host) {
+func (r *RoundRobin) Select(hosts map[string]*Host) (host *Host) {
 	var offset int64
 	var found bool
 

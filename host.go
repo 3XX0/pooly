@@ -17,7 +17,7 @@ type serie struct {
 	trials uint32
 }
 
-type host struct {
+type Host struct {
 	sync.RWMutex
 	pool       *Pool
 	timeSeries []serie
@@ -36,7 +36,7 @@ func (s *serie) reset() {
 	s.trials = 0
 }
 
-func (h *host) computeScore(c Computer) {
+func (h *Host) computeScore(c Computer) {
 	var score float64
 
 	h.Lock()
@@ -63,14 +63,14 @@ func (h *host) computeScore(c Computer) {
 	h.Unlock()
 }
 
-func (h *host) getScore() (score float64) {
+func (h *Host) Score() (score float64) {
 	h.RLock()
 	score = h.score
 	h.RUnlock()
 	return
 }
 
-func (h *host) decay() {
+func (h *Host) decay() {
 	h.Lock()
 	// Shift the current time slot
 	h.timeSlot = (h.timeSlot + 1) % cap(h.timeSeries)
@@ -82,13 +82,13 @@ func (h *host) decay() {
 	h.Unlock()
 }
 
-func (h *host) rate(score float64) {
+func (h *Host) rate(score float64) {
 	h.Lock()
 	h.timeSeries[h.timeSlot].update(score)
 	h.Unlock()
 }
 
-func (h *host) releaseConn(c *Conn, e error, score float64) error {
+func (h *Host) releaseConn(c *Conn, e error, score float64) error {
 	if err := h.pool.Put(c, e); err != nil {
 		return err
 	}
