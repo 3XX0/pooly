@@ -163,6 +163,7 @@ func (s *Service) Remove(address string) {
 func (s *Service) GetConn() (*Conn, error) {
 	s.RLock()
 	if len(s.hosts) == 0 {
+		s.RUnlock()
 		return nil, ErrNoHostAvailable
 	}
 	h := s.BanditStrategy.Select(s.hosts)
