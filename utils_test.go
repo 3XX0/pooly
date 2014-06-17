@@ -67,7 +67,7 @@ func (s *echoServer) close() {
 	close(s.q)
 	s.l.Close()
 	s.w.Wait()
-	time.Sleep(1 * time.Millisecond)
+	time.Sleep(1 * time.Millisecond) // XXX workaround Travis
 }
 
 func ping(c net.Conn) error {

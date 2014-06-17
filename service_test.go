@@ -14,7 +14,8 @@ func TestServiceStatus(t *testing.T) {
 	defer s.Close()
 
 	s.Add(echo1)
-	time.Sleep(1 * time.Millisecond)
+	time.Sleep(1 * time.Millisecond) // wait for propagation
+
 	m := s.Status()
 	if len(m) == 0 {
 		t.Fatal("status report expected")
@@ -76,106 +77,62 @@ func TestServiceBulkGetConn(t *testing.T) {
 				t.Error(err)
 			}
 		}()
+		// Slow it down, so that we can observe connections reuse
 		time.Sleep(1 * time.Millisecond)
 	}
 	w.Wait()
 	t.Log("status:", s.Status())
 }
 
-func TestServiceRoundRobin(t *testing.T) {
-	e1 := newEchoServer(t, echo1)
-	defer e1.close()
-	e2 := newEchoServer(t, echo2)
-	defer e2.close()
-	e3 := newEchoServer(t, echo3)
-	defer e3.close()
+func TestHostScore(t *testing.T) {
+	e := newEchoServer(t, echo1)
+	defer e.close()
 
-	s := NewService("echo", nil)
+	s := NewService("echo", &ServiceConfig{
+		BanditStrategy: NewEpsilonGreedy(0.1),
+	})
 	defer s.Close()
 
 	s.Add(echo1)
-	s.Add(echo2)
-	s.Add(echo3)
 
 	c, err := s.GetConn()
 	if err != nil {
 		t.Fatal(err)
 	}
-	a, _ := c.Address()
-	if err := c.Release(nil, HostUp); err != nil {
+	if err := c.Release(nil, 0.6); err != nil {
 		t.Fatal(err)
 	}
-	if a != echo1 {
-		t.Fatal(echo1, "expected")
-	}
+
+	time.Sleep(DefaultDecayDuration / seriesNum)
 
 	c, err = s.GetConn()
 	if err != nil {
 		t.Fatal(err)
 	}
-	a, _ = c.Address()
-	if err := c.Release(nil, HostUp); err != nil {
+	if err := c.Release(nil, 0.3); err != nil {
 		t.Fatal(err)
 	}
-	if a != echo2 {
-		t.Fatal(echo2, "expected")
-	}
 
-	t.Log("status:", s.Status())
-	s.Remove(echo3)
-	time.Sleep(1 * time.Millisecond)
+	time.Sleep(DefaultDecayDuration / seriesNum)
 
 	c, err = s.GetConn()
 	if err != nil {
 		t.Fatal(err)
 	}
-	a, _ = c.Address()
-	if err := c.Release(nil, HostUp); err != nil {
+	if err := c.Release(nil, 1); err != nil {
 		t.Fatal(err)
 	}
-	if a != echo1 {
-		t.Fatal(echo1, "expected")
-	}
 
-	t.Log("status:", s.Status())
-	s.Add(echo3)
-	time.Sleep(1 * time.Millisecond)
+	time.Sleep(DefaultMemoizeScoreDuration)
 
 	c, err = s.GetConn()
 	if err != nil {
 		t.Fatal(err)
 	}
-	a, _ = c.Address()
-	if err := c.Release(nil, HostUp); err != nil {
+	if c.host.Score() != 0.7 {
+		t.Fatal("score of 0.7 expected")
+	}
+	if err := c.Release(nil, 1); err != nil {
 		t.Fatal(err)
 	}
-	if a != echo2 {
-		t.Fatal(echo2, "expected")
-	}
-
-	c, err = s.GetConn()
-	if err != nil {
-		t.Fatal(err)
-	}
-	a, _ = c.Address()
-	if err := c.Release(nil, HostUp); err != nil {
-		t.Fatal(err)
-	}
-	if a != echo3 {
-		t.Fatal(echo3, "expected")
-	}
-
-	c, err = s.GetConn()
-	if err != nil {
-		t.Fatal(err)
-	}
-	a, _ = c.Address()
-	if err := c.Release(nil, HostUp); err != nil {
-		t.Fatal(err)
-	}
-	if a != echo1 {
-		t.Fatal(echo1, "expected")
-	}
-
-	t.Log("status:", s.Status())
 }

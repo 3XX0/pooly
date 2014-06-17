@@ -31,6 +31,7 @@ func TestPoolBulkGet(t *testing.T) {
 			}
 			p.Put(c, err)
 		}()
+		// Slow it down, so that we can observe connections reuse
 		time.Sleep(1 * time.Millisecond)
 	}
 
