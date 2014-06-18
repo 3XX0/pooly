@@ -11,11 +11,11 @@ import (
 	"time"
 )
 
-func TestServiceEpsilonGreedy(t *testing.T) {
+func TestServiceSoftMax(t *testing.T) {
 	var (
-		horizon  = 250
-		epsilons = []float32{0.1, 0.5, 0.9}
-		hosts    = map[string]bernouilliExperiment{
+		horizon      = 250
+		temperatures = []float32{0.1, 0.5, 0.9}
+		hosts        = map[string]bernouilliExperiment{
 			echo1: 0.1,
 			echo2: 0.1,
 			echo3: 0.9,
@@ -40,11 +40,11 @@ func TestServiceEpsilonGreedy(t *testing.T) {
 	p.Y.Min = 0
 	p.Y.Max = 1
 
-	for _, e := range epsilons {
+	for _, tp := range temperatures {
 		means := make(plotter.XYs, horizon)
 
 		s := NewService("echo", &ServiceConfig{
-			BanditStrategy:       NewEpsilonGreedy(e),
+			BanditStrategy:       NewSoftMax(tp),
 			MemoizeScoreDuration: 1 * time.Millisecond,
 		})
 		s.Add(echo1)
@@ -82,12 +82,12 @@ func TestServiceEpsilonGreedy(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		l.LineStyle.Color = color.RGBA{B: uint8(255 * e), A: 255}
-		p.Legend.Add("epsilon "+strconv.FormatFloat(float64(e), 'f', 1, 32), l)
+		l.LineStyle.Color = color.RGBA{G: uint8(255 * tp), A: 255}
+		p.Legend.Add("temperature "+strconv.FormatFloat(float64(tp), 'f', 1, 32), l)
 		p.Add(l)
 	}
 
-	if err := p.Save(7, 7, "egreedy_test.svg"); err != nil {
+	if err := p.Save(7, 7, "softmax_test.svg"); err != nil {
 		t.Fatal(err)
 	}
 }

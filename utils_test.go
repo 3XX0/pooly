@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"errors"
 	"io"
+	"math/rand"
 	"net"
 	"sync"
 	"testing"
@@ -25,6 +26,16 @@ const (
 )
 
 var testDriver = &customDriver{NewNetDriver("tcp")}
+
+type bernouilliExperiment float32
+
+func (b bernouilliExperiment) trial() float64 {
+	if rand.Float32() > float32(b) {
+		return HostDown
+	} else {
+		return HostUp
+	}
+}
 
 type echoServer struct {
 	l net.Listener
