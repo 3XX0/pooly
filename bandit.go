@@ -16,31 +16,27 @@ func NewSoftMax(temperature float32) *SoftMax {
 
 func (s *SoftMax) Select(hosts map[string]*Host) *Host {
 	var sum, prob float64
-	exp := make([]float64, len(hosts))
+	exp := make(map[*Host]float64, len(hosts))
 
-	i := 0
 	for _, h := range hosts {
 		score := h.Score()
 		if score < 0 { // no score recorded
-			exp[i] = 0
+			exp[h] = 0
 			continue
 		}
-		exp[i] = math.Exp(score / float64(s.temperature))
-		sum += exp[i]
-		i++
+		exp[h] = math.Exp(score / float64(s.temperature))
+		sum += exp[h]
 	}
 
-	i = 0
 	p := rand.Float64()
 	for _, h := range hosts {
 		if sum == 0 {
 			return h
 		}
-		prob += exp[i] / sum // cumulative probability
+		prob += exp[h] / sum // cumulative probability
 		if prob > p {
 			return h
 		}
-		i++
 	}
 	return nil
 }
