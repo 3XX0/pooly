@@ -27,8 +27,7 @@ func (c *Conn) Interface() interface{} {
 	return c.iface
 }
 
-// NetConn is a helper for underlying user objects that satisfy
-// the standard library net.Conn interface
+// NetConn is a helper for underlying user objects that satisfy the standard library net.Conn interface.
 func (c *Conn) NetConn() net.Conn {
 	if c.iface == nil {
 		return nil
@@ -83,6 +82,9 @@ func (c *Conn) setHost(h *Host) {
 	c.host = h
 }
 
+// Release releases the connection back to its linked service.
+// It takes an error state which defines whether or not the connection failed during operation and
+// a score between 0 and 1 which describes how well the connection performed (e.g inverse response time, up/down ...).
 func (c *Conn) Release(e error, score float64) error {
 	if c.host == nil {
 		return ErrNoHostAvailable
@@ -96,6 +98,7 @@ func (c *Conn) Release(e error, score float64) error {
 	return h.releaseConn(c, e, score)
 }
 
+// Address returns the address of the host bound to the connection.
 func (c *Conn) Address() (string, error) {
 	if c.host == nil {
 		return "", ErrNoHostAvailable

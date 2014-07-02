@@ -47,7 +47,7 @@ type PoolConfig struct {
 // Pool maintains a pool of connections. The application calls the Get method to get a connection
 // from the pool and the Put method to return the connection to the pool.
 // New can be called to allocate more connections in the background.
-// When one is done with the pool, Close will cleanup all the connections ressources.
+// When one is done with the pool, Close will cleanup all the connections resources.
 // The pool itself will adapt to the demand by spawning and destroying connections as needed.
 // In order to tweak its behavior, settings like IdleTimeout and MaxConns may be used.
 type Pool struct {
@@ -76,7 +76,7 @@ const (
 )
 
 // NewPool creates a new pool of connections.
-// If no configuration is specified, defaults values are used.
+// If no configuration is specified (nil), defaults values are used.
 func NewPool(address string, c *PoolConfig) *Pool {
 	if c == nil {
 		c = new(PoolConfig)
@@ -281,6 +281,7 @@ func (p *Pool) ForceClose() bool {
 	return false
 }
 
+// Address returns the address bound to the pool.
 func (p *Pool) Address() string {
 	return p.address
 }

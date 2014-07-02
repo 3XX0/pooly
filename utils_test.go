@@ -32,9 +32,8 @@ type bernouilliExperiment float32
 func (b bernouilliExperiment) trial() float64 {
 	if rand.Float32() > float32(b) {
 		return HostDown
-	} else {
-		return HostUp
 	}
+	return HostUp
 }
 
 type echoServer struct {

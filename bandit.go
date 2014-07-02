@@ -10,10 +10,12 @@ type SoftMax struct {
 	temperature float32
 }
 
+// NewSoftMax creates a new SoftMax bandit strategy.
 func NewSoftMax(temperature float32) *SoftMax {
 	return &SoftMax{temperature}
 }
 
+// Select implements the Selecter interface.
 func (s *SoftMax) Select(hosts map[string]*Host) *Host {
 	var sum, prob float64
 	exp := make(map[*Host]float64, len(hosts))
@@ -45,10 +47,12 @@ type EpsilonGreedy struct {
 	epsilon float32
 }
 
+// NewEpsilonGreedy creates a new EpsilonGreedy bandit strategy.
 func NewEpsilonGreedy(epsilon float32) *EpsilonGreedy {
 	return &EpsilonGreedy{epsilon}
 }
 
+// Select implements the Selecter interface.
 func (e *EpsilonGreedy) Select(hosts map[string]*Host) (host *Host) {
 	if rand.Float32() > e.epsilon { // exploit
 		var max float64 = -1
@@ -77,10 +81,12 @@ type RoundRobin struct {
 	nextAvailSlot int64
 }
 
+// NewRoundRobin creates a new RoundRobin bandit strategy.
 func NewRoundRobin() *RoundRobin {
 	return new(RoundRobin)
 }
 
+// Select implements the Selecter interface.
 func (r *RoundRobin) Select(hosts map[string]*Host) (host *Host) {
 	var offset int64
 	var found bool

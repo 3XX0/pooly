@@ -17,6 +17,7 @@ type serie struct {
 	trials uint32
 }
 
+// Host defines a remote peer, usually referred by an address.
 type Host struct {
 	sync.RWMutex
 	pool       *Pool
@@ -63,6 +64,8 @@ func (h *Host) computeScore(c Computer) {
 	h.Unlock()
 }
 
+// Score returns the computed score of a given host.
+// It returns -1 if the score hasn't been computed yet (see Service.MemoizeScoreDuration).
 func (h *Host) Score() (score float64) {
 	h.RLock()
 	score = h.score

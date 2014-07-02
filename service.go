@@ -5,25 +5,51 @@ import (
 	"time"
 )
 
+// Computer describes the interface responsible of computing the resulting score of a host.
+// It takes the initial score and returns one computed using a predefined function (e.g exp, log ...)
 type Computer interface {
 	Compute(float64) float64
 }
 
+// Selecter describes the interface responsible of selecting a host among the ones registered in the service.
 type Selecter interface {
 	Select(map[string]*Host) *Host
 }
 
+// ServiceConfig defines the service configuration options.
 type ServiceConfig struct {
 	PoolConfig
 
-	PrespawnConns        uint
-	CloseDeadline        time.Duration
-	DecayDuration        time.Duration
+	// Number of connections to prespawn on hosts additions (DefaultPrespawnConns by default).
+	PrespawnConns uint
+
+	// Deadline after which pools are forced closed (see Pool.ForceClose) (DefaultCloseDeadline by default).
+	CloseDeadline time.Duration
+
+	// Defines the time interval taken into account when scores are computed (DefaultDecayDuration by default).
+	// Scores are calculated using a weighted average over the course of this duration (recent feedbacks get higher weight).
+	DecayDuration time.Duration
+
+	// Time interval between two successive hosts scores computations.
+	// Each score is calculated and cached for this duration (DefaultMemoizeScoreDuration by default).
 	MemoizeScoreDuration time.Duration
-	ScoreCalculator      Computer
-	BanditStrategy       Selecter
+
+	// Optional score calculator (none by default).
+	ScoreCalculator Computer
+
+	// Multi-armed bandit strategy used for host selection (RoundRobin by default).
+	// The tradeoff faced by the service at each GetConn is between "exploitation" (choose hosts having the highest score)
+	// and "exploration" (find about the expected score of other hosts).
+	// The key here is to find the right balance between "exploration" and "exploitation" of hosts given their respective score.
+	// Some strategies will favor fairness while others will prefer to pick hosts based on how well they perform.
+	BanditStrategy Selecter
 }
 
+// Service manages several hosts, every one of them having a connection pool (see Pool).
+// It computes periodically hosts scores and learns about the best alternatives according to the BanditStrategy option.
+// Hosts are added or removed from the service via Add and Remove respectively.
+// The application calls the GetConn method to get a connection and releases it through the Conn.Release interface.
+// When one is done with the pool, Close will cleanup all the service resources.
 type Service struct {
 	*ServiceConfig
 
@@ -36,6 +62,8 @@ type Service struct {
 	stop    chan struct{}
 }
 
+// NewService creates a new service given a unique name.
+// If no configuration is specified (nil), defaults values are used.
 func NewService(name string, c *ServiceConfig) *Service {
 	if c == nil {
 		c = new(ServiceConfig)
@@ -148,18 +176,25 @@ func (s *Service) deleteHost(a string) {
 	}()
 }
 
+// Name returns the name of the service.
 func (s *Service) Name() string {
 	return s.name
 }
 
+// Add adds a given host to the service.
+// The effect of such operation may not be reflected immediately.
 func (s *Service) Add(address string) {
 	s.add <- address
 }
 
+// Remove removes a given host from the service.
+// The effect of such operation may not be reflected immediately.
 func (s *Service) Remove(address string) {
 	s.rm <- address
 }
 
+// GetConn returns a connection from the service.
+// The host serving the connection is chosen according to the BanditStrategy policy in place.
 func (s *Service) GetConn() (*Conn, error) {
 	s.RLock()
 	if len(s.hosts) == 0 {
@@ -180,6 +215,8 @@ func (s *Service) GetConn() (*Conn, error) {
 	return c, nil
 }
 
+// Status returns every host addresses managed by the service along with
+// the number of connections handled by their respective pool thus far.
 func (s *Service) Status() map[string]int32 {
 	s.RLock()
 	m := make(map[string]int32, len(s.hosts))
@@ -190,6 +227,8 @@ func (s *Service) Status() map[string]int32 {
 	return m
 }
 
+// Close closes the service, thus destroying all hosts and their respective pool.
+// After a call to Close, the service can not be used again.
 func (s *Service) Close() {
 	close(s.stop)
 }
