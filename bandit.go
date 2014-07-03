@@ -6,6 +6,10 @@ import (
 	"sync"
 )
 
+// SoftMax strategy varies host selection probabilities as a graded function of their estimated scores.
+// The temperature parameter is used to tweak the algorithm behavior:
+// high temperature (+inf) means that all hosts will have nearly the same probability of being selected (equiprobable)
+// low temperature (+0) favors a greedy selection and will tend to select hosts having the highest scores
 type SoftMax struct {
 	temperature float32
 }
@@ -43,6 +47,9 @@ func (s *SoftMax) Select(hosts map[string]*Host) *Host {
 	return nil
 }
 
+// EpsilonGreedy strategy selects generally the host having the highest score (greedy) but every once in a while
+// it will randomly explore for other alternatives.
+// The epsilon parameter (0-1) defines the proportion that the exploration phase occupies (e.g 1 for 100%).
 type EpsilonGreedy struct {
 	epsilon float32
 }
@@ -75,6 +82,7 @@ func (e *EpsilonGreedy) Select(hosts map[string]*Host) (host *Host) {
 	return
 }
 
+// RoundRobin strategy selects hosts in circular manner with every request returning the next host in line.
 type RoundRobin struct {
 	sync.Mutex
 	nextSchedule  int64
