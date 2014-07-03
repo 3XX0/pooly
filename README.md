@@ -1,4 +1,4 @@
-Pooly [![Build Status](https://travis-ci.org/3XX0/pooly.svg)](https://travis-ci.org/3XX0/pooly)
+Pooly [![Build Status](https://travis-ci.org/3XX0/pooly.svg)](https://travis-ci.org/3XX0/pooly) [![GoDoc](https://godoc.org/github.com/3XX0/pooly?status.png)](http://godoc.org/github.com/3XX0/pooly)
 =====
 
 A package inspired by [go-hostpool](https://github.com/bitly/go-hostpool), to manage efficiently pools of connection across multiple hosts. Pooly uses multi-armed bandit algorithms for host selection in order to maximize service connectivity by avoiding faulty hosts.
