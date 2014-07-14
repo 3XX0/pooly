@@ -193,7 +193,7 @@ func TestPoolBugousPut(t *testing.T) {
 	if err := p.Close(); err != nil {
 		t.Fatal(err)
 	}
-	if err := p.Put(NewConn(nil), nil); err != ErrPoolClosed {
+	if _, err := p.Put(NewConn(nil), nil); err != ErrPoolClosed {
 		t.Fatal("closed pool expected")
 	}
 }

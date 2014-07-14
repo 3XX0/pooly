@@ -92,9 +92,14 @@ func (h *Host) rate(score float64) {
 }
 
 func (h *Host) releaseConn(c *Conn, e error, score float64) error {
-	if err := h.pool.Put(c, e); err != nil {
+	down, err := h.pool.Put(c, e)
+	if err != nil {
 		return err
 	}
-	h.rate(score)
+	if down {
+		h.rate(HostDown)
+	} else {
+		h.rate(score)
+	}
 	return nil
 }

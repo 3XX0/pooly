@@ -230,21 +230,22 @@ gotone:
 }
 
 // Put puts a given connection back to the pool depending on its error status.
-func (p *Pool) Put(c *Conn, e error) error {
+// It returns true if the error was fatal for the connection, false otherwise.
+func (p *Pool) Put(c *Conn, e error) (bool, error) {
 	if p.status.is(closed) {
-		return ErrPoolClosed
+		return false, ErrPoolClosed
 	}
 
 	if c == nil {
-		return ErrInvalidArg
+		return false, ErrInvalidArg
 	}
 	if e != nil && !p.Driver.Temporary(e) {
 		p.gc <- c
-		return nil
+		return true, nil
 	}
 	c.setIdle(p)
 	p.inbound.channel() <- c
-	return nil
+	return false, nil
 }
 
 // Close closes the pool, thus destroying all connections.

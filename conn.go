@@ -85,6 +85,7 @@ func (c *Conn) setHost(h *Host) {
 // Release releases the connection back to its linked service.
 // It takes an error state which defines whether or not the connection failed during operation and
 // a score between 0 and 1 which describes how well the connection performed (e.g inverse response time, up/down ...).
+// If the error state indicates a fatal error (determined by Driver.Temporary), the score is forced to the value 0 (HostDown).
 func (c *Conn) Release(e error, score float64) error {
 	if c.host == nil {
 		return ErrNoHostAvailable
