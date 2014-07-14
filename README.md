@@ -14,8 +14,8 @@ Basic Usage
 
 Start two dummy netcat servers.
 ```sh
-nc -l 1234 &
-nc -l 12345 &
+nc -l -p 1234 &
+nc -l -p 12345 &
 ```
 
 Get two connections from the "netcat" service (_Round-robin_ is the strategy used by default).
