@@ -24,7 +24,7 @@ func TestServiceRoundRobin(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	a, _ := c.Address()
+	a := c.Address()
 	if err := c.Release(nil, HostUp); err != nil {
 		t.Fatal(err)
 	}
@@ -36,7 +36,7 @@ func TestServiceRoundRobin(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	a, _ = c.Address()
+	a = c.Address()
 	if err := c.Release(nil, HostUp); err != nil {
 		t.Fatal(err)
 	}
@@ -52,7 +52,7 @@ func TestServiceRoundRobin(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	a, _ = c.Address()
+	a = c.Address()
 	if err := c.Release(nil, HostUp); err != nil {
 		t.Fatal(err)
 	}
@@ -68,7 +68,7 @@ func TestServiceRoundRobin(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	a, _ = c.Address()
+	a = c.Address()
 	if err := c.Release(nil, HostUp); err != nil {
 		t.Fatal(err)
 	}
@@ -80,7 +80,7 @@ func TestServiceRoundRobin(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	a, _ = c.Address()
+	a = c.Address()
 	if err := c.Release(nil, HostUp); err != nil {
 		t.Fatal(err)
 	}
@@ -92,7 +92,7 @@ func TestServiceRoundRobin(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	a, _ = c.Address()
+	a = c.Address()
 	if err := c.Release(nil, HostUp); err != nil {
 		t.Fatal(err)
 	}

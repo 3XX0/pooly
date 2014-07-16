@@ -100,9 +100,9 @@ func (c *Conn) Release(e error, score float64) error {
 }
 
 // Address returns the address of the host bound to the connection.
-func (c *Conn) Address() (string, error) {
+func (c *Conn) Address() string {
 	if c.host == nil {
-		return "", ErrNoHostAvailable
+		return ""
 	}
-	return c.host.pool.Address(), nil
+	return c.host.pool.Address()
 }

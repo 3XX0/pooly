@@ -69,7 +69,7 @@ func TestServiceEpsilonGreedy(t *testing.T) {
 				means[i].Y = m + (c.host.Score()-m)/(n+1)
 			}
 
-			a, _ := c.Address()
+			a := c.Address()
 			if err := c.Release(nil, hosts[a].trial()); err != nil {
 				t.Error(err)
 				continue
