@@ -23,6 +23,9 @@ type ServiceConfig struct {
 	// Number of connections to prespawn on hosts additions (DefaultPrespawnConns by default).
 	PrespawnConns uint
 
+	// Maximum attempts to get a connection from the service before giving up (DefaultMaxAttempts by default).
+	MaxAttempts uint
+
 	// Deadline after which pools are forced closed (see Pool.ForceClose) (DefaultCloseDeadline by default).
 	CloseDeadline time.Duration
 
@@ -70,6 +73,9 @@ func NewService(name string, c *ServiceConfig) *Service {
 	}
 	if c.PrespawnConns == 0 {
 		c.PrespawnConns = DefaultPrespawnConns
+	}
+	if c.MaxAttempts == 0 {
+		c.MaxAttempts = DefaultMaxAttempts
 	}
 	if c.CloseDeadline == 0 {
 		c.CloseDeadline = DefaultCloseDeadline
@@ -196,9 +202,16 @@ func (s *Service) Remove(address string) {
 // GetConn returns a connection from the service.
 // The host serving the connection is chosen according to the BanditStrategy policy in place.
 func (s *Service) GetConn() (*Conn, error) {
+	var attempts uint
+
+again:
 	s.RLock()
 	if len(s.hosts) == 0 {
 		s.RUnlock()
+		if attempts < s.MaxAttempts {
+			attempts++
+			goto again
+		}
 		return nil, ErrNoHostAvailable
 	}
 	h := s.BanditStrategy.Select(s.hosts)
@@ -208,7 +221,11 @@ func (s *Service) GetConn() (*Conn, error) {
 	if err != nil {
 		// Pool is closed or timed out, demote the host and start over
 		h.rate(HostDown)
-		return s.GetConn()
+		if attempts < s.MaxAttempts {
+			attempts++
+			goto again
+		}
+		return nil, err
 	}
 
 	c.setHost(h)
