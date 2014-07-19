@@ -7,9 +7,9 @@ import (
 
 // Pooly default constants.
 const (
-	DefaultMaxConns    = 10
-	DefaultMaxAttempts = 3
-	DefaultRetryDelay  = 10 * time.Millisecond
+	DefaultMaxConns   = 10
+	DefaultMaxRetries = 3
+	DefaultRetryDelay = 10 * time.Millisecond
 
 	DefaultPrespawnConns        = 1
 	DefaultCloseDeadline        = 30 * time.Second

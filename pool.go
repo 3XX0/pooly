@@ -37,10 +37,10 @@ type PoolConfig struct {
 	// Maximum number of connections allowed in the pool (DefaultMaxConns by default).
 	MaxConns int32
 
-	// Maximum number of connection attempts (DefaultMaxAttempts by default).
-	MaxAttempts int
+	// Maximum number of connection retry (DefaultMaxRetries by default).
+	MaxRetries int
 
-	// Time interval between connection attempts (DefaultRetryDelay by default).
+	// Time interval between connection retry (DefaultRetryDelay by default).
 	RetryDelay time.Duration
 }
 
@@ -87,8 +87,8 @@ func NewPool(address string, c *PoolConfig) *Pool {
 	if c.MaxConns <= 0 {
 		c.MaxConns = DefaultMaxConns
 	}
-	if c.MaxAttempts <= 0 {
-		c.MaxAttempts = DefaultMaxAttempts
+	if c.MaxRetries <= 0 {
+		c.MaxRetries = DefaultMaxRetries
 	}
 	if c.RetryDelay == 0 {
 		c.RetryDelay = DefaultRetryDelay
@@ -149,7 +149,7 @@ func (p *Pool) newConn() {
 	if !p.connsCount.increment() {
 		return
 	}
-	for i := 0; i < p.MaxAttempts; i++ {
+	for i := 0; i < p.MaxRetries; i++ {
 		c, err := p.Driver.Dial(p.address)
 		if c != nil && (err == nil || p.Driver.Temporary(err)) {
 			c.setIdle(p)
