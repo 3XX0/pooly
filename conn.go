@@ -86,11 +86,24 @@ func (c *Conn) setHost(h *Host) {
 // It takes an error state which defines whether or not the connection failed during operation and
 // a score between 0 and 1 which describes how well the connection performed (e.g inverse response time, up/down ...).
 // If the error state indicates a fatal error (determined by Driver.Temporary), the score is forced to the value 0 (HostDown).
-func (c *Conn) Release(e error, score float64) error {
+func (c *Conn) Release(err interface{}, score float64) error {
+	var e error
+
 	if c.host == nil {
 		return ErrNoHostAvailable
 	}
 	if score < 0 || score > 1 {
+		return ErrInvalidArg
+	}
+
+	switch v := err.(type) {
+	case error:
+		e = v
+	case *error:
+		e = *v
+	case nil:
+		e = nil
+	default:
 		return ErrInvalidArg
 	}
 
