@@ -1,15 +1,16 @@
 package pooly
 
-
 import (
-	"net/http"
 	"net"
+	"net/http"
 	"time"
 )
 
 // HTTPDriver is a predefined driver for handling standard http.Client objects.
 type HTTPDriver struct {
-	timeout time.Duration
+	connTimeout  time.Duration
+	readTimeout  time.Duration
+	writeTimeout time.Duration
 }
 
 // NewHTTPDriver instantiates a new HTTPDriver, ready to be used in a PoolConfig.
@@ -18,26 +19,30 @@ func NewHTTPDriver() *HTTPDriver {
 }
 
 // SetTimeout sets the dialing timeout on a http.Client (underlying http.Transport) object.
-func (h *HTTPDriver) SetTimeout(timeout time.Duration) {
-	h.timeout = timeout
+func (h *HTTPDriver) SetConnTimeout(timeout time.Duration) {
+	h.connTimeout = timeout
+}
+
+func (h *HTTPDriver) SetReadTimeout(timeout time.Duration) {
+	h.readTimeout = timeout
+}
+
+func (h *HTTPDriver) SetWriteTimeout(timeout time.Duration) {
+	h.writeTimeout = timeout
 }
 
 // Dial is analogous to net.Dial.
 func (h *HTTPDriver) Dial(address string) (*Conn, error) {
-	var err error
-	var c net.Conn
-
-	if h.timeout > 0 {
-		c, err = net.DialTimeout("tcp", address, h.timeout)
-	} else {
-		c, err = net.Dial("tcp", address)
-	}
+	c, err := newNetConn("tcp", address, h.connTimeout)
 	if err != nil {
 		return nil, err
 	}
 
+	c.SetReadTimeout(h.readTimeout)
+	c.SetWriteTimeout(h.writeTimeout)
+
 	tr := &http.Transport{
-		MaxIdleConnsPerHost:    1,
+		MaxIdleConnsPerHost: 1,
 		Dial: func(network, addr string) (net.Conn, error) {
 			return c, nil
 		},
