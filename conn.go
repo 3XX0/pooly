@@ -36,6 +36,7 @@ func (c *Conn) NetConn() net.Conn {
 	return c.iface.(net.Conn)
 }
 
+// HTTPConn is a helper for underlying user objects that satisfy the standard library http.Client object.
 func (c *Conn) HTTPConn() *http.Client {
 	if c.iface == nil {
 		return nil

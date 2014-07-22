@@ -20,6 +20,8 @@ func TestServiceRoundRobin(t *testing.T) {
 	s.Add(echo2)
 	s.Add(echo3)
 
+	time.Sleep(1 * time.Millisecond) // wait for propagation
+
 	c, err := s.GetConn()
 	if err != nil {
 		t.Fatal(err)

@@ -45,10 +45,13 @@ func TestPoolBulkGet(t *testing.T) {
 func TestPoolPut(t *testing.T) {
 	e := newEchoServer(t, echo1)
 	defer e.close()
-	conf := new(PoolConfig)
-	conf.MaxConns = 1
-	conf.IdleTimeout =  100000 * time.Millisecond
+
+	conf := &PoolConfig{
+		MaxConns:    1,
+		IdleTimeout: 100 * time.Millisecond,
+	}
 	p := NewPool(echo1, conf)
+
 	c, err := p.Get()
 	if err != nil {
 		t.Fatal(err)

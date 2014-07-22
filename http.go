@@ -18,15 +18,17 @@ func NewHTTPDriver() *HTTPDriver {
 	return new(HTTPDriver)
 }
 
-// SetTimeout sets the dialing timeout on a http.Client (underlying http.Transport) object.
+// SetConnTimeout sets the dialing timeout on a http.Client (underlying http.Transport) object.
 func (h *HTTPDriver) SetConnTimeout(timeout time.Duration) {
 	h.connTimeout = timeout
 }
 
+// SetReadTimeout sets the read timeout on a http.Client (underlying http.Transport) object.
 func (h *HTTPDriver) SetReadTimeout(timeout time.Duration) {
 	h.readTimeout = timeout
 }
 
+// SetWriteTimeout sets the write timeout on a http.Client (underlying http.Transport) object.
 func (h *HTTPDriver) SetWriteTimeout(timeout time.Duration) {
 	h.writeTimeout = timeout
 }
@@ -37,7 +39,6 @@ func (h *HTTPDriver) Dial(address string) (*Conn, error) {
 	if err != nil {
 		return nil, err
 	}
-
 	c.SetReadTimeout(h.readTimeout)
 	c.SetWriteTimeout(h.writeTimeout)
 

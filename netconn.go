@@ -7,6 +7,7 @@ import (
 
 type netConn struct {
 	net.Conn
+
 	writeTimeout time.Duration
 	readTimeout  time.Duration
 }
@@ -33,20 +34,21 @@ func (c *netConn) Write(b []byte) (n int, err error) {
 	return c.Conn.Write(b)
 }
 
-// newConn returns a net.Conn that handles per-read & per-write timeout, in addition
-// to regular connection establishment timeout
-func newNetConn(netw, addr string, connectionTimeout time.Duration) (*netConn, error) {
-	var inner net.Conn
+// Returns a net.Conn that handles per-read/write timeout in addition to the regular
+// connection establishment timeout.
+func newNetConn(network, address string, timeout time.Duration) (*netConn, error) {
+	var c net.Conn
 	var err error
 
-	if connectionTimeout > 0 {
-		inner, err = net.DialTimeout(netw, addr, connectionTimeout)
+	if timeout > 0 {
+		c, err = net.DialTimeout(network, address, timeout)
 	} else {
-		inner, err = net.Dial(netw, addr)
+		c, err = net.Dial(network, address)
 	}
-	conn := &netConn{
-		Conn: inner,
+	if err != nil {
+		return nil, err
 	}
-	return conn, err
 
+	conn := &netConn{Conn: c}
+	return conn, nil
 }

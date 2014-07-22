@@ -18,17 +18,19 @@ func NewNetDriver(network string) *NetDriver {
 	return &NetDriver{network: network}
 }
 
-// SetTimeout sets the dialing timeout on a net.Conn object.
+// SetConnTimeout sets the dialing timeout on a net.Conn object.
 func (n *NetDriver) SetConnTimeout(timeout time.Duration) {
 	n.connTimeout = timeout
 }
 
-func (h *NetDriver) SetReadTimeout(timeout time.Duration) {
-	h.readTimeout = timeout
+// SetReadTimeout sets the read timeout on a net.Conn object.
+func (n *NetDriver) SetReadTimeout(timeout time.Duration) {
+	n.readTimeout = timeout
 }
 
-func (h *NetDriver) SetWriteTimeout(timeout time.Duration) {
-	h.writeTimeout = timeout
+// SetWriteTimeout sets the write timeout on a net.Conn object.
+func (n *NetDriver) SetWriteTimeout(timeout time.Duration) {
+	n.writeTimeout = timeout
 }
 
 // Dial is analogous to net.Dial.
@@ -39,6 +41,7 @@ func (n *NetDriver) Dial(address string) (*Conn, error) {
 	}
 	c.SetReadTimeout(n.readTimeout)
 	c.SetWriteTimeout(n.writeTimeout)
+
 	return NewConn(c), err
 }
 
