@@ -50,10 +50,8 @@ func (c *Conn) isClosed() bool {
 
 func (c *Conn) setClosed() {
 	if c.timer != nil {
-		select {
-		case c.timerStop <- true:
-			c.timer.Stop()
-		default:
+		if c.timer.Stop() {
+			c.timerStop <- true
 		}
 	}
 	c.closed = true
@@ -77,12 +75,10 @@ func (c *Conn) setIdle(p *Pool) {
 
 func (c *Conn) setActive() bool {
 	if c.timer != nil {
-		select {
-		case c.timerStop <- true:
-			c.timer.Stop()
-		default:
+		if !c.timer.Stop() {
 			return false
 		}
+		c.timerStop <- true
 	}
 	return true
 }
