@@ -46,11 +46,10 @@ func TestPoolPut(t *testing.T) {
 	e := newEchoServer(t, echo1)
 	defer e.close()
 
-	conf := &PoolConfig{
+	p := NewPool(echo1, &PoolConfig{
+		WaitTimeout: 10 * time.Millisecond,
 		MaxConns:    1,
-		IdleTimeout: 100 * time.Millisecond,
-	}
-	p := NewPool(echo1, conf)
+	})
 
 	c, err := p.Get()
 	if err != nil {
@@ -267,4 +266,32 @@ func TestPoolForceClose(t *testing.T) {
 		t.Fatal("forced close expected")
 	}
 	c.NetConn().Close()
+}
+
+func TestPoolExhaustion(t *testing.T) {
+	e := newEchoServer(t, echo1)
+	defer e.close()
+
+	p := NewPool(echo1, &PoolConfig{
+		MaxConns: 1,
+	})
+
+	c, err := p.Get()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	go func() {
+		p.Put(c, errors.New("")) // fake an operation failure
+	}()
+
+	d, err := p.Get()
+	if err != nil {
+		t.Fatal(err)
+	}
+	p.Put(d, nil)
+
+	if err := p.Close(); err != nil {
+		t.Fatal(err)
+	}
 }

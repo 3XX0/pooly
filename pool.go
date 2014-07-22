@@ -200,7 +200,11 @@ func (p *Pool) Get() (*Conn, error) {
 		}
 	}
 
-	// FIXME deadlock if MaxConns is reached and the garbage collector triggers now
+	// FIXME potential deadlock if the following conditions are met:
+	// - MaxConns is reached and there are no connections available in the pool
+	// - WaitTimeout is 0
+	// - No more connections will be released successfully.
+	// - Garbage collection is triggered after New
 
 	if p.WaitTimeout > 0 {
 		t = time.After(p.WaitTimeout)
