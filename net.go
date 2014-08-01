@@ -35,14 +35,24 @@ func (n *NetDriver) SetWriteTimeout(timeout time.Duration) {
 
 // Dial is analogous to net.Dial.
 func (n *NetDriver) Dial(address string) (*Conn, error) {
-	c, err := newNetConn(n.network, address, n.connTimeout)
+	var c net.Conn
+	var err error
+
+	if n.connTimeout > 0 {
+		c, err = net.DialTimeout(n.network, address, n.connTimeout)
+	} else {
+		c, err = net.Dial(n.network, address)
+	}
 	if err != nil {
 		return nil, err
 	}
-	c.SetReadTimeout(n.readTimeout)
-	c.SetWriteTimeout(n.writeTimeout)
 
-	return NewConn(c), err
+	w := &timeoutWrapper{
+		Conn:         c,
+		readTimeout:  n.readTimeout,
+		writeTimeout: n.writeTimeout,
+	}
+	return NewConn(w), nil
 }
 
 // Close is analogous to net.Close.
