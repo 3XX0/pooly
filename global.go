@@ -7,7 +7,7 @@ import (
 
 // Pooly default constants.
 const (
-	DefaultMaxConns   = 10
+	DefaultMaxConns   = 30
 	DefaultMaxRetries = 3
 	DefaultRetryDelay = 10 * time.Millisecond
 
