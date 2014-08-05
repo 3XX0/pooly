@@ -12,6 +12,7 @@ type Conn struct {
 	timerStop chan bool
 	closed    bool
 	host      *Host
+	gottenAt  time.Time
 }
 
 // NewConn creates a new connection container, wrapping up a user defined connection object.
@@ -76,6 +77,14 @@ func (c *Conn) setActive() bool {
 
 func (c *Conn) setHost(h *Host) {
 	c.host = h
+}
+
+func (c *Conn) setTime(t time.Time) {
+	c.gottenAt = t
+}
+
+func (c *Conn) diffTime() time.Duration {
+	return time.Now().Sub(c.gottenAt)
 }
 
 // Release releases the connection back to its linked service.

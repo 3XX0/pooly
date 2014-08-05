@@ -1,6 +1,7 @@
 package pooly
 
 import (
+	"github.com/cactus/go-statsd-client/statsd"
 	"sync"
 )
 
@@ -24,6 +25,7 @@ type Host struct {
 	timeSeries []serie
 	timeSlot   int
 	score      float64
+	stats      statsd.Statter
 }
 
 // Update the arithmetic mean of the series with a given score [0,1].
@@ -92,6 +94,10 @@ func (h *Host) rate(score float64) {
 }
 
 func (h *Host) releaseConn(c *Conn, e error, score float64) error {
+	dt := int64(c.diffTime().Seconds() * 1000)
+	h.stats.Timing("conns.active.period", dt, 1.0)
+	h.stats.Inc("conns.put.count", 1, 1.0)
+
 	down, err := h.pool.Put(c, e)
 	if err != nil {
 		return err

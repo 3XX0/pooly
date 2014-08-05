@@ -1,6 +1,8 @@
 package pooly
 
 import (
+	"github.com/cactus/go-statsd-client/statsd"
+	"log"
 	"sync"
 	"time"
 )
@@ -46,6 +48,9 @@ type ServiceConfig struct {
 	// The key here is to find the right balance between "exploration" and "exploitation" of hosts given their respective score.
 	// Some strategies will favor fairness while others will prefer to pick hosts based on how well they perform.
 	BanditStrategy Selecter
+
+	// Address and port of a statsd server supposed to receive pooly service metrics (none by default).
+	StatsDAddr string
 }
 
 // Service manages several hosts, every one of them having a connection pool (see Pool).
@@ -63,11 +68,14 @@ type Service struct {
 	memoize *time.Ticker
 	add, rm chan string
 	stop    chan struct{}
+	stats   statsd.Statter
 }
 
 // NewService creates a new service given a unique name.
 // If no configuration is specified (nil), defaults values are used.
 func NewService(name string, c *ServiceConfig) *Service {
+	var err error
+
 	if c == nil {
 		c = new(ServiceConfig)
 	}
@@ -102,9 +110,39 @@ func NewService(name string, c *ServiceConfig) *Service {
 		s.decay = time.NewTicker(c.DecayDuration / seriesNum)
 		s.memoize = time.NewTicker(c.MemoizeScoreDuration)
 	}
+	if c.StatsDAddr != "" {
+		s.stats, err = statsd.New(c.StatsDAddr, "service."+name)
+		log.Println("pooly:", err)
+	}
+	if s.stats == nil {
+		s.stats, _ = statsd.NewNoop()
+	} else {
+		go s.monitor()
+	}
 
 	go s.serve()
 	return s
+}
+
+func (s *Service) monitor() {
+	s.stats.Gauge("conns.count", 0, 1.0)
+	s.stats.Gauge("hosts.count", 0, 1.0)
+	s.stats.Gauge("hosts.score.last", 0, 1.0)
+
+	t := time.NewTicker(1 * time.Second)
+	for {
+		select {
+		case <-t.C:
+			var n int64
+			for _, c := range s.Status() {
+				n += int64(c)
+			}
+			s.stats.Gauge("conns.count", n, 1.0)
+		case <-s.stop:
+			t.Stop()
+			return
+		}
+	}
 }
 
 func (s *Service) serve() {
@@ -161,8 +199,10 @@ func (s *Service) newHost(a string) {
 		pool:       p,
 		timeSeries: make([]serie, 1, seriesNum),
 		score:      -1,
+		stats:      s.stats,
 	}
 	s.Unlock()
+	s.stats.GaugeDelta("hosts.count", 1, 1.0)
 }
 
 func (s *Service) deleteHost(a string) {
@@ -180,6 +220,7 @@ func (s *Service) deleteHost(a string) {
 		})
 		h.pool.Close()
 	}()
+	s.stats.GaugeDelta("hosts.count", -1, 1.0)
 }
 
 // Name returns the name of the service.
@@ -204,6 +245,7 @@ func (s *Service) Remove(address string) {
 func (s *Service) GetConn() (*Conn, error) {
 	var attempts uint
 
+	start := time.Now()
 again:
 	s.RLock()
 	if len(s.hosts) == 0 {
@@ -220,6 +262,7 @@ again:
 	c, err := h.pool.Get()
 	if err != nil {
 		// Pool is closed or timed out, demote the host and start over
+		s.stats.Inc("conns.get.fails", 1, 1.0)
 		h.rate(HostDown)
 		if attempts < s.MaxAttempts {
 			attempts++
@@ -228,6 +271,17 @@ again:
 		return nil, err
 	}
 
+	end := time.Now()
+	dt := int64(end.Sub(start).Seconds() * 1000)
+	s.stats.Timing("conns.get.delay", dt, 1.0)
+	s.stats.Inc("conns.get.count", 1, 1.0)
+	if _, ok := s.BanditStrategy.(*RoundRobin); !ok {
+		// TODO hosts.score.avg
+		p := int64(h.Score() * 100)
+		s.stats.Gauge("hosts.score.last", p, 1.0)
+	}
+
+	c.setTime(end)
 	c.setHost(h)
 	return c, nil
 }
