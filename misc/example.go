@@ -1,6 +1,18 @@
 package main
 
+import "fmt"
 import "github.com/3XX0/pooly"
+
+func ping(s *pooly.Service) error {
+	c, err := s.GetConn()
+	if err != nil {
+		return err
+	}
+	defer c.Release(&err, pooly.HostUp)
+
+	_, err = c.NetConn().Write([]byte("ping\n"))
+	return err
+}
 
 func main() {
 	s := pooly.NewService("netcat", nil)
@@ -9,29 +21,12 @@ func main() {
 	s.Add("127.0.0.1:1234")
 	s.Add("127.0.0.1:12345")
 
-	c, err := s.GetConn()
-	if err != nil {
-		println("could not get connection")
+	if err := ping(s); err != nil {
+		fmt.Println(err)
 		return
 	}
-
-	_, err = c.NetConn().Write([]byte("ping\n"))
-
-	if err := c.Release(err, pooly.HostUp); err != nil {
-		println("could not release connection")
-		return
-	}
-
-	c, err = s.GetConn()
-	if err != nil {
-		println("could not get connection")
-		return
-	}
-
-	_, err = c.NetConn().Write([]byte("ping\n"))
-
-	if err := c.Release(err, pooly.HostUp); err != nil {
-		println("could not release connection")
+	if err := ping(s); err != nil {
+		fmt.Println(err)
 		return
 	}
 }
