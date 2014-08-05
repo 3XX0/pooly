@@ -121,8 +121,6 @@ func NewService(name string, c *ServiceConfig) *Service {
 		runtime.SetFinalizer(s.stats, func(s statsd.Statter) { s.Close() })
 		s.stats.Gauge("conns.count", 0, sampleRate)
 		s.stats.Gauge("hosts.count", 0, sampleRate)
-		s.stats.Gauge("hosts.score.last", 0, sampleRate)
-
 		go s.monitor()
 	}
 
@@ -283,9 +281,8 @@ again:
 	s.stats.Timing("conns.get.delay", dt, sampleRate)
 	s.stats.Inc("conns.get.count", 1, sampleRate)
 	if _, ok := s.BanditStrategy.(*RoundRobin); !ok {
-		// TODO hosts.score.avg
 		p := int64(h.Score() * 100)
-		s.stats.Gauge("hosts.score.last", p, sampleRate)
+		s.stats.Timing("hosts.score", p, sampleRate)
 	}
 
 	c.setTime(end)
