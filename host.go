@@ -95,8 +95,8 @@ func (h *Host) rate(score float64) {
 
 func (h *Host) releaseConn(c *Conn, e error, score float64) error {
 	dt := int64(c.diffTime().Seconds() * 1000)
-	h.stats.Timing("conns.active.period", dt, 1.0)
-	h.stats.Inc("conns.put.count", 1, 1.0)
+	h.stats.Timing("conns.active.period", dt, sampleRate)
+	h.stats.Inc("conns.put.count", 1, sampleRate)
 
 	down, err := h.pool.Put(c, e)
 	if err != nil {

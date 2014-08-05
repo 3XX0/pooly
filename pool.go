@@ -1,6 +1,7 @@
 package pooly
 
 import (
+	"github.com/cactus/go-statsd-client/statsd"
 	"time"
 )
 
@@ -60,6 +61,7 @@ type Pool struct {
 	conns      chan *Conn
 	gc         chan *Conn
 	gcCtl      chan int
+	stats      statsd.Statter
 }
 
 // Pool status.
@@ -104,9 +106,14 @@ func NewPool(address string, c *PoolConfig) *Pool {
 		gcCtl:      make(chan int, 1),
 	}
 	p.inbound = newChannel(&p.conns)
+	p.stats, _ = statsd.NewNoop()
 
 	go p.collect()
 	return p
+}
+
+func (p *Pool) setStats(s statsd.Statter) {
+	p.stats = s
 }
 
 // Garbage collects connections.
@@ -156,6 +163,7 @@ func (p *Pool) newConn() {
 			p.inbound.channel() <- c
 			return
 		}
+		p.stats.Inc("conns.fails", 1, sampleRate)
 		time.Sleep(p.RetryDelay)
 	}
 	p.gc <- nil // connection failed
@@ -228,6 +236,7 @@ gotone:
 	// Test the connection
 	if err := p.Driver.TestOnBorrow(c); err != nil {
 		if !p.Driver.Temporary(err) {
+			p.stats.Inc("conns.fails", 1, sampleRate)
 			p.gc <- c // garbage collect the connection and start over
 			return p.Get()
 		}
@@ -246,6 +255,7 @@ func (p *Pool) Put(c *Conn, e error) (bool, error) {
 		return false, ErrInvalidArg
 	}
 	if e != nil && !p.Driver.Temporary(e) {
+		p.stats.Inc("conns.fails", 1, sampleRate)
 		p.gc <- c
 		return true, nil
 	}
