@@ -135,11 +135,15 @@ func (s *Service) monitor() {
 	for {
 		select {
 		case <-t.C:
-			var n int64
-			for _, c := range s.Status() {
+			status := s.Status()
+			n := int64(len(status))
+			s.stats.Gauge("hosts.count", n, sampleRate)
+			n = 0
+			for _, c := range status {
 				n += int64(c)
 			}
 			s.stats.Gauge("conns.count", n, sampleRate)
+
 		case <-s.stop:
 			t.Stop()
 			return
@@ -206,7 +210,6 @@ func (s *Service) newHost(a string) {
 		stats:      s.stats,
 	}
 	s.Unlock()
-	s.stats.GaugeDelta("hosts.count", 1, sampleRate)
 }
 
 func (s *Service) deleteHost(a string) {
@@ -224,7 +227,6 @@ func (s *Service) deleteHost(a string) {
 		})
 		h.pool.Close()
 	}()
-	s.stats.GaugeDelta("hosts.count", -1, sampleRate)
 }
 
 // Name returns the name of the service.
