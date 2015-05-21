@@ -50,8 +50,8 @@ func (c *Conn) setClosed() {
 }
 
 func (c *Conn) setIdle(p *Pool) {
-	if p.IdleTimeout > 0 {
-		c.timer = time.NewTimer(p.IdleTimeout)
+	if p.ConnIdleTimeout > 0 {
+		c.timer = time.NewTimer(p.ConnIdleTimeout)
 		go func() {
 			select {
 			case <-c.timerStop:

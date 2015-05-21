@@ -29,7 +29,7 @@ type PoolConfig struct {
 
 	// Close connections after remaining idle for this duration.
 	// If the value is zero (default), then idle connections are not closed.
-	IdleTimeout time.Duration
+	ConnIdleTimeout time.Duration
 
 	// Defines the duration during which Get operations will try to return a connection from the pool.
 	// If the value is zero (default), then Get should wait forever.
@@ -38,8 +38,8 @@ type PoolConfig struct {
 	// Maximum number of connections allowed in the pool (DefaultMaxConns by default).
 	MaxConns int32
 
-	// Maximum number of connection retry (DefaultMaxRetries by default).
-	MaxRetries int
+	// Number of connection retry (DefaultConnRetries by default).
+	ConnRetries int
 
 	// Time interval between connection retry (DefaultRetryDelay by default).
 	RetryDelay time.Duration
@@ -50,7 +50,7 @@ type PoolConfig struct {
 // New can be called to allocate more connections in the background.
 // When one is done with the pool, Close will cleanup all the connections resources.
 // The pool itself will adapt to the demand by spawning and destroying connections as needed.
-// In order to tweak its behavior, settings like IdleTimeout and MaxConns may be used.
+// In order to tweak its behavior, settings like ConnIdleTimeout and MaxConns may be used.
 type Pool struct {
 	*PoolConfig
 
@@ -89,8 +89,8 @@ func NewPool(address string, c *PoolConfig) *Pool {
 	if c.MaxConns <= 0 {
 		c.MaxConns = DefaultMaxConns
 	}
-	if c.MaxRetries <= 0 {
-		c.MaxRetries = DefaultMaxRetries
+	if c.ConnRetries <= 0 {
+		c.ConnRetries = DefaultConnRetries
 	}
 	if c.RetryDelay == 0 {
 		c.RetryDelay = DefaultRetryDelay
@@ -156,7 +156,7 @@ func (p *Pool) newConn() {
 	if !p.connsCount.increment() {
 		return
 	}
-	for i := 0; i < p.MaxRetries; i++ {
+	for i := 0; i < p.ConnRetries; i++ {
 		c, err := p.Driver.Dial(p.address)
 		if c != nil && (err == nil || p.Driver.Temporary(err)) {
 			c.setIdle(p)

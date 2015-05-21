@@ -111,7 +111,7 @@ func TestPoolConnIdle(t *testing.T) {
 	defer e.close()
 
 	p := NewPool(echo1, &PoolConfig{
-		IdleTimeout: 10 * time.Millisecond,
+		ConnIdleTimeout: 10 * time.Millisecond,
 	})
 
 	c, err := p.Get()
@@ -120,7 +120,7 @@ func TestPoolConnIdle(t *testing.T) {
 	}
 	p.Put(c, nil)
 
-	time.Sleep(p.IdleTimeout) // wait for idle timeout to expire
+	time.Sleep(p.ConnIdleTimeout) // wait for idle timeout to expire
 
 	d, err := p.Get()
 	if err != nil {

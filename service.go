@@ -26,8 +26,8 @@ type ServiceConfig struct {
 	// Number of connections to prespawn on hosts additions (DefaultPrespawnConns by default).
 	PrespawnConns uint
 
-	// Maximum attempts to get a connection from the service before giving up (DefaultMaxAttempts by default).
-	MaxAttempts uint
+	// Number of attempts to get a connection from the service before giving up (DefaultGetAttempts by default).
+	GetAttempts uint
 
 	// Deadline after which pools are forced closed (see Pool.ForceClose) (DefaultCloseDeadline by default).
 	CloseDeadline time.Duration
@@ -83,8 +83,8 @@ func NewService(name string, c *ServiceConfig) *Service {
 	if c.PrespawnConns == 0 {
 		c.PrespawnConns = DefaultPrespawnConns
 	}
-	if c.MaxAttempts == 0 {
-		c.MaxAttempts = DefaultMaxAttempts
+	if c.GetAttempts == 0 {
+		c.GetAttempts = DefaultGetAttempts
 	}
 	if c.CloseDeadline == 0 {
 		c.CloseDeadline = DefaultCloseDeadline
@@ -254,7 +254,7 @@ again:
 	s.RLock()
 	if len(s.hosts) == 0 {
 		s.RUnlock()
-		if attempts < s.MaxAttempts {
+		if attempts < s.GetAttempts {
 			attempts++
 			goto again
 		}
@@ -268,7 +268,7 @@ again:
 		// Pool is closed or timed out, demote the host and start over
 		s.stats.Inc("conns.get.fails", 1, sampleRate)
 		h.rate(HostDown)
-		if attempts < s.MaxAttempts {
+		if attempts < s.GetAttempts {
 			attempts++
 			goto again
 		}
