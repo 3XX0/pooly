@@ -2,6 +2,7 @@ package pooly
 
 import (
 	"net"
+	"sync/atomic"
 	"time"
 )
 
@@ -30,13 +31,13 @@ type releaseWrapper struct {
 	net.Conn
 
 	conn    *Conn
-	lasterr error
+	lasterr atomic.Value
 }
 
 func (w *releaseWrapper) Read(b []byte) (n int, err error) {
 	n, err = w.Conn.Read(b)
 	if err != nil {
-		w.lasterr = err
+		w.lasterr.Store(&err)
 	}
 	return
 }
@@ -44,11 +45,11 @@ func (w *releaseWrapper) Read(b []byte) (n int, err error) {
 func (w *releaseWrapper) Write(b []byte) (n int, err error) {
 	n, err = w.Conn.Write(b)
 	if err != nil {
-		w.lasterr = err
+		w.lasterr.Store(&err)
 	}
 	return
 }
 
 func (w *releaseWrapper) Close() error {
-	return w.conn.Release(w.lasterr, HostUp)
+	return w.conn.Release(w.lasterr.Load(), HostUp)
 }
