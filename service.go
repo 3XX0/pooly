@@ -113,7 +113,9 @@ func NewService(name string, c *ServiceConfig) *Service {
 	}
 	if c.StatsdAddr != "" {
 		s.stats, err = statsd.New(c.StatsdAddr, "service."+name)
-		log.Println("pooly:", err)
+		if err != nil {
+			log.Println("pooly:", err)
+		}
 	}
 	if s.stats == nil {
 		s.stats, _ = statsd.NewNoop()
