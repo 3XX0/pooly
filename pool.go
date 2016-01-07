@@ -106,7 +106,7 @@ func NewPool(address string, c *PoolConfig) *Pool {
 		gcCtl:      make(chan int, 1),
 	}
 	p.inbound = newChannel(&p.conns)
-	p.stats, _ = statsd.NewNoop()
+	p.stats, _ = statsd.NewNoopClient()
 
 	go p.collect()
 	return p
