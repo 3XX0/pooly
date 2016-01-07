@@ -13,7 +13,10 @@ func TestServiceRoundRobin(t *testing.T) {
 	e3 := newEchoServer(t, echo3)
 	defer e3.close()
 
-	s := NewService("echo", nil)
+	s, err := NewService("echo", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
 	defer s.Close()
 
 	s.Add(echo1)

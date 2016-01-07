@@ -2,7 +2,6 @@ package pooly
 
 import (
 	"github.com/cactus/go-statsd-client/statsd"
-	"log"
 	"runtime"
 	"sync"
 	"time"
@@ -74,7 +73,7 @@ type Service struct {
 
 // NewService creates a new service given a unique name.
 // If no configuration is specified (nil), defaults values are used.
-func NewService(name string, c *ServiceConfig) *Service {
+func NewService(name string, c *ServiceConfig) (*Service, error) {
 	var err error
 
 	if c == nil {
@@ -114,7 +113,7 @@ func NewService(name string, c *ServiceConfig) *Service {
 	if c.StatsdAddr != "" {
 		s.stats, err = statsd.New(c.StatsdAddr, "service."+name)
 		if err != nil {
-			log.Println("pooly:", err)
+			return nil, err
 		}
 	}
 	if s.stats == nil {
@@ -127,7 +126,7 @@ func NewService(name string, c *ServiceConfig) *Service {
 	}
 
 	go s.serve()
-	return s
+	return s, nil
 }
 
 func (s *Service) monitor() {

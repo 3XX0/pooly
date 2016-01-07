@@ -10,7 +10,10 @@ func TestServiceStatus(t *testing.T) {
 	e := newEchoServer(t, echo1)
 	defer e.close()
 
-	s := NewService("echo", nil)
+	s, err := NewService("echo", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
 	defer s.Close()
 
 	s.Add(echo1)
@@ -31,7 +34,10 @@ func TestServiceAddRemove(t *testing.T) {
 	e := newEchoServer(t, echo1)
 	defer e.close()
 
-	s := NewService("echo", nil)
+	s, err := NewService("echo", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
 	defer s.Close()
 
 	w.Add(2)
@@ -58,9 +64,12 @@ func TestServiceBulkGetConn(t *testing.T) {
 	e := newEchoServer(t, echo1)
 	defer e.close()
 
-	s := NewService("echo", &ServiceConfig{
+	s, err := NewService("echo", &ServiceConfig{
 		PoolConfig: PoolConfig{Driver: testDriver},
 	})
+	if err != nil {
+		t.Fatal(err)
+	}
 	defer s.Close()
 
 	s.Add(echo1)
@@ -88,9 +97,12 @@ func TestHostScore(t *testing.T) {
 	e := newEchoServer(t, echo1)
 	defer e.close()
 
-	s := NewService("echo", &ServiceConfig{
+	s, err := NewService("echo", &ServiceConfig{
 		BanditStrategy: NewEpsilonGreedy(0.1),
 	})
+	if err != nil {
+		t.Fatal(err)
+	}
 	defer s.Close()
 
 	s.Add(echo1)
