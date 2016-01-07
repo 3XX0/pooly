@@ -117,6 +117,13 @@ func (c *Conn) Release(err interface{}, score float64) error {
 	return h.releaseConn(c, e, score)
 }
 
+// Close the connection
+func (c *Conn) Close() error {
+	h := c.host
+	c.host = nil
+	return h.pool.CloseConn(c)
+}
+
 // Address returns the address of the host bound to the connection.
 func (c *Conn) Address() string {
 	if c.host == nil {
