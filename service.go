@@ -1,6 +1,7 @@
 package pooly
 
 import (
+	"fmt"
 	"github.com/cactus/go-statsd-client/statsd"
 	"runtime"
 	"sync"
@@ -273,7 +274,7 @@ again:
 			attempts++
 			goto again
 		}
-		return nil, err
+		return nil, fmt.Errorf("%s: %v", s.name, err)
 	}
 
 	// Send statsd metrics
