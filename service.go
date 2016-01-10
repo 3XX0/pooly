@@ -112,13 +112,13 @@ func NewService(name string, c *ServiceConfig) (*Service, error) {
 		s.memoize = time.NewTicker(c.MemoizeScoreDuration)
 	}
 	if c.StatsdAddr != "" {
-		s.stats, err = statsd.New(c.StatsdAddr, "service."+name)
+		s.stats, err = statsd.NewClient(c.StatsdAddr, "service."+name)
 		if err != nil {
 			return nil, err
 		}
 	}
 	if s.stats == nil {
-		s.stats, _ = statsd.NewNoop()
+		s.stats, _ = statsd.NewNoopClient()
 	} else {
 		runtime.SetFinalizer(s.stats, func(s statsd.Statter) { s.Close() })
 		s.stats.Gauge("conns.count", 0, sampleRate)
