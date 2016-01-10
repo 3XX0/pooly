@@ -264,6 +264,12 @@ func (p *Pool) Put(c *Conn, e error) (bool, error) {
 	return false, nil
 }
 
+// CloseConn garbage collects a given connection
+func (p *Pool) CloseConn(c *Conn) error {
+	p.gc <- c
+	return nil
+}
+
 // Close closes the pool, thus destroying all connections.
 // It returns when all spawned connections have been successfully garbage collected.
 // After a successful call to Close, the pool can not be used again.

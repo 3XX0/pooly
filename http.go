@@ -12,7 +12,7 @@ func NewHTTPTransport(service *Service) *http.Transport {
 			return nil, err
 		}
 
-		w := &releaseWrapper{
+		w := &closeWrapper{
 			Conn: c.NetConn(),
 			conn: c,
 		}
